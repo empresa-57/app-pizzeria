@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pizzería — Pedidos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,700;1,600&family=Caveat:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --carbon:#1b1815;
+    --carbon-2:#242019;
+    --masa:#f2e9d8;
+    --tomate:#c8402c;
+    --tomate-2:#e0512f;
+    --albahaca:#5f7a4f;
+    --queso:#e8b04b;
+    --linea: rgba(242,233,216,0.12);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--carbon);
+    color:var(--masa);
+    font-family:'Inter',sans-serif;
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(200,64,44,0.10), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(95,122,79,0.08), transparent 45%);
+    min-height:100vh;
+    padding-bottom:120px;
+  }
+  header{
+    padding:32px 20px 20px;
+    text-align:center;
+    border-bottom:1px solid var(--linea);
+  }
+  .eyebrow{
+    font-family:'Caveat',cursive;
+    font-size:22px;
+    color:var(--queso);
+    display:block;
+    margin-bottom:2px;
+  }
+  h1{
+    font-family:'Fraunces',serif;
+    font-weight:700;
+    font-size:clamp(32px,7vw,48px);
+    margin:0;
+    letter-spacing:-0.5px;
+  }
+  .sub{
+    color:rgba(242,233,216,0.6);
+    font-size:14px;
+    margin-top:8px;
+  }
+  main{
+    max-width:640px;
+    margin:0 auto;
+    padding:24px 16px;
+  }
+  .pizza{
+    background:var(--carbon-2);
+    border:1px solid var(--linea);
+    border-radius:14px;
+    padding:18px 18px 16px;
+    margin-bottom:16px;
+    overflow:hidden;
+  }
+  .pizza-foto{
+    width:calc(100% + 36px);
+    margin:-18px -18px 14px;
+    display:block;
+    height:180px;
+    object-fit:cover;
+  }
+
+  /* Bebidas */
+  .bebida{
+    background:var(--carbon-2);
+    border:1px solid var(--linea);
+    border-radius:14px;
+    padding:14px 16px;
+    margin-bottom:12px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .bebida-foto{
+    width:48px; height:48px;
+    border-radius:9px;
+    object-fit:cover;
+    flex-shrink:0;
+  }
+  .bebida-info{
+    flex:1;
+  }
+  .bebida-nombre{
+    font-weight:600;
+    font-size:14.5px;
+  }
+  .bebida-precio{
+    font-size:13px;
+    color:var(--queso);
+    margin-top:2px;
+  }
+  .cantidad-selector{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .cantidad-btn{
+    width:30px; height:30px;
+    border-radius:8px;
+    border:1px solid var(--linea);
+    background:transparent;
+    color:var(--masa);
+    font-size:16px;
+    font-weight:700;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .cantidad-btn:hover{ border-color:var(--tomate-2); }
+  .cantidad-numero{
+    min-width:18px;
+    text-align:center;
+    font-weight:700;
+    font-size:14px;
+  }
+  .btn-agregar-bebida{
+    background:var(--tomate);
+    color:white;
+    border:none;
+    border-radius:9px;
+    padding:8px 14px;
+    font-weight:600;
+    font-size:13px;
+    cursor:pointer;
+    margin-left:6px;
+  }
+  .btn-agregar-bebida:hover{ background:var(--tomate-2); }
+  .pizza-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:12px;
+  }
+  .pizza-nombre{
+    font-family:'Fraunces',serif;
+    font-weight:700;
+    font-size:21px;
+  }
+  .pizza-desc{
+    font-size:13.5px;
+    color:rgba(242,233,216,0.55);
+    margin:4px 0 12px;
+    line-height:1.4;
+  }
+  .tamanos{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .tamano-btn{
+    flex:1;
+    min-width:90px;
+    background:transparent;
+    border:1px solid var(--linea);
+    color:var(--masa);
+    border-radius:9px;
+    padding:9px 6px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    text-align:center;
+    transition:all .15s ease;
+  }
+  .tamano-btn:hover{ border-color:var(--tomate-2); }
+  .tamano-btn .precio{
+    display:block;
+    font-size:12px;
+    font-weight:500;
+    color:var(--queso);
+    margin-top:2px;
+  }
+  .tamano-btn.sel{
+    background:var(--tomate);
+    border-color:var(--tomate);
+    color:white;
+  }
+  .tamano-btn.sel .precio{ color:white; }
+
+  .agregar-fila{
+    display:flex;
+    gap:10px;
+    margin-top:12px;
+    align-items:center;
+  }
+  .btn-agregar{
+    background:var(--tomate);
+    color:white;
+    border:none;
+    border-radius:9px;
+    padding:10px 16px;
+    font-weight:600;
+    font-size:13.5px;
+    cursor:pointer;
+    flex:1;
+  }
+  .btn-agregar:disabled{
+    background:rgba(242,233,216,0.15);
+    color:rgba(242,233,216,0.4);
+    cursor:not-allowed;
+  }
+  .btn-agregar:not(:disabled):hover{ background:var(--tomate-2); }
+
+  .adicionales{
+    margin-top:10px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  .chip{
+    border:1px solid var(--linea);
+    border-radius:999px;
+    padding:5px 11px;
+    font-size:12px;
+    cursor:pointer;
+    color:rgba(242,233,216,0.75);
+  }
+  .chip.sel{
+    background:var(--albahaca);
+    border-color:var(--albahaca);
+    color:white;
+  }
+
+  h2.section{
+    font-family:'Fraunces',serif;
+    font-size:22px;
+    margin:36px 0 14px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  h2.section .linea{
+    flex:1;
+    height:1px;
+    background:var(--linea);
+  }
+
+  /* Carrito flotante */
+  #carrito-bar{
+    position:fixed;
+    bottom:0; left:0; right:0;
+    background:var(--carbon-2);
+    border-top:1px solid var(--linea);
+    padding:14px 16px;
+    display:none;
+    z-index:20;
+  }
+  #carrito-bar.show{ display:block; }
+  .carrito-resumen{
+    max-width:640px;
+    margin:0 auto;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .carrito-info{ font-size:13.5px; color:rgba(242,233,216,0.7); }
+  .carrito-total{
+    font-family:'Fraunces',serif;
+    font-size:20px;
+    font-weight:700;
+    color:var(--queso);
+  }
+  .btn-ver-pedido{
+    background:var(--tomate);
+    color:white;
+    border:none;
+    border-radius:10px;
+    padding:12px 20px;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+  }
+
+  /* Modal checkout */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.6);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:30;
+  }
+  .overlay.show{ display:flex; }
+  .sheet{
+    background:var(--carbon-2);
+    width:100%;
+    max-width:640px;
+    max-height:88vh;
+    overflow-y:auto;
+    border-radius:20px 20px 0 0;
+    padding:24px 20px 28px;
+    border-top:1px solid var(--linea);
+  }
+  .sheet h3{
+    font-family:'Fraunces',serif;
+    font-size:22px;
+    margin:0 0 16px;
+  }
+  .item-linea{
+    display:flex;
+    justify-content:space-between;
+    font-size:13.5px;
+    padding:8px 0;
+    border-bottom:1px solid var(--linea);
+    gap:10px;
+  }
+  .item-linea .quitar{
+    color:var(--tomate-2);
+    cursor:pointer;
+    font-size:12px;
+    text-decoration:underline;
+    white-space:nowrap;
+  }
+  label{
+    display:block;
+    font-size:12.5px;
+    color:rgba(242,233,216,0.6);
+    margin:14px 0 5px;
+  }
+  input, textarea, select{
+    width:100%;
+    background:var(--carbon);
+    border:1px solid var(--linea);
+    color:var(--masa);
+    border-radius:9px;
+    padding:11px 12px;
+    font-size:14px;
+    font-family:inherit;
+  }
+  .metodo-pago{
+    display:flex;
+    gap:8px;
+    margin-top:6px;
+  }
+  .metodo-pago .chip{ flex:1; text-align:center; }
+  .totales{
+    margin-top:18px;
+    padding-top:14px;
+    border-top:1px solid var(--linea);
+    font-size:13.5px;
+  }
+  .totales div{ display:flex; justify-content:space-between; padding:3px 0; }
+  .totales .final{
+    font-family:'Fraunces',serif;
+    font-size:19px;
+    font-weight:700;
+    color:var(--queso);
+    padding-top:8px;
+  }
+  .btn-enviar{
+    width:100%;
+    background:var(--tomate);
+    color:white;
+    border:none;
+    border-radius:12px;
+    padding:15px;
+    font-weight:700;
+    font-size:15px;
+    margin-top:18px;
+    cursor:pointer;
+  }
+  .btn-enviar:disabled{ opacity:0.5; cursor:not-allowed; }
+  .btn-cerrar{
+    background:none;
+    border:none;
+    color:rgba(242,233,216,0.5);
+    font-size:13px;
+    cursor:pointer;
+    text-decoration:underline;
+    display:block;
+    margin:0 auto;
+  }
+  .confirmacion{
+    text-align:center;
+    padding:20px 0 10px;
+  }
+  .confirmacion .check{
+    font-size:44px;
+    color:var(--albahaca);
+  }
+  .confirmacion h3{ margin-top:10px; }
+  .confirmacion p{ color:rgba(242,233,216,0.65); font-size:13.5px; }
+
+  #banner-cerrado{
+    display:none;
+    max-width:640px;
+    margin:0 auto 20px;
+    padding:16px 18px;
+    background:rgba(200,64,44,0.12);
+    border:1px solid rgba(200,64,44,0.4);
+    border-radius:12px;
+    text-align:center;
+  }
+  #banner-cerrado.show{ display:block; }
+  #banner-cerrado .titulo{
+    font-family:'Fraunces',serif;
+    font-weight:700;
+    font-size:18px;
+    color:var(--tomate-2);
+    margin-bottom:4px;
+  }
+  #banner-cerrado .sub{ font-size:13px; color:rgba(242,233,216,0.6); }
+
+  body.cerrado #menu{
+    opacity:0.4;
+    pointer-events:none;
+    filter:grayscale(0.5);
+  }
+
+  /* Chat flotante */
+  #chat-btn{
+    position:fixed;
+    right:18px;
+    bottom:18px;
+    width:56px; height:56px;
+    border-radius:50%;
+    background:var(--tomate);
+    border:none;
+    color:white;
+    font-size:24px;
+    cursor:pointer;
+    box-shadow:0 6px 20px rgba(0,0,0,0.4);
+    z-index:25;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  #chat-btn .badge{
+    position:absolute;
+    top:-2px; right:-2px;
+    background:var(--queso);
+    color:var(--carbon);
+    font-size:11px;
+    font-weight:800;
+    width:20px; height:20px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:2px solid var(--carbon);
+  }
+  #chat-btn .badge.oculto{ display:none; }
+
+  #chat-overlay{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.6);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:40;
+  }
+  #chat-overlay.show{ display:flex; }
+  #chat-sheet{
+    background:var(--carbon-2);
+    width:100%;
+    max-width:480px;
+    height:70vh;
+    border-radius:20px 20px 0 0;
+    border-top:1px solid var(--linea);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  #chat-header{
+    padding:16px 18px;
+    border-bottom:1px solid var(--linea);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  #chat-header h3{
+    font-family:'Fraunces',serif;
+    margin:0;
+    font-size:18px;
+  }
+  #chat-header .cerrar-chat{
+    background:none;
+    border:none;
+    color:rgba(242,233,216,0.5);
+    font-size:22px;
+    cursor:pointer;
+  }
+  #chat-mensajes{
+    flex:1;
+    overflow-y:auto;
+    padding:16px 18px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .msg{
+    max-width:78%;
+    padding:9px 13px;
+    border-radius:14px;
+    font-size:13.5px;
+    line-height:1.4;
+  }
+  .msg-cliente{
+    align-self:flex-end;
+    background:var(--tomate);
+    color:white;
+    border-bottom-right-radius:4px;
+  }
+  .msg-negocio{
+    align-self:flex-start;
+    background:rgba(242,233,216,0.08);
+    border-bottom-left-radius:4px;
+  }
+  .msg-hora{
+    font-size:10px;
+    opacity:0.6;
+    margin-top:3px;
+  }
+  #chat-vacio{
+    color:rgba(242,233,216,0.4);
+    font-size:13px;
+    text-align:center;
+    margin:auto;
+  }
+  #chat-input-fila{
+    display:flex;
+    gap:8px;
+    padding:12px 14px;
+    border-top:1px solid var(--linea);
+  }
+  #chat-input{
+    flex:1;
+    background:var(--carbon);
+    border:1px solid var(--linea);
+    color:var(--masa);
+    border-radius:10px;
+    padding:10px 12px;
+    font-size:13.5px;
+    font-family:inherit;
+  }
+  #chat-enviar-btn{
+    background:var(--tomate);
+    color:white;
+    border:none;
+    border-radius:10px;
+    padding:0 16px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  #chat-nombre-form{
+    padding:20px 18px;
+    margin:auto;
+    text-align:center;
+  }
+  #chat-nombre-form p{
+    font-size:13px;
+    color:rgba(242,233,216,0.6);
+    margin-bottom:10px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="eyebrow">recién salida del horno</span>
+  <h1>Pizzería Giron </h1>
+  <p class="sub">Haz tu pedido aquí — sin llamadas, sin esperas al teléfono 🍕</p>
+</header>
+
+<main>
+  <div id="banner-cerrado">
+    <div class="titulo">Estamos cerrados en este momento</div>
+    <div class="sub">No estamos recibiendo pedidos ahora. Vuelve a intentarlo más tarde 🍕</div>
+  </div>
+
+  <h2 class="section">Pizzas <span class="linea"></span></h2>
+  <div id="menu"></div>
+
+  <h2 class="section">Bebidas <span class="linea"></span></h2>
+  <div id="bebidas"></div>
+</main>
+
+<div id="carrito-bar">
+  <div class="carrito-resumen">
+    <div class="carrito-info"><span id="carrito-count">0</span> item(s)</div>
+    <div class="carrito-total" id="carrito-total">$0</div>
+    <button class="btn-ver-pedido" onclick="abrirCheckout()">Ver pedido</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="sheet" id="sheet-checkout">
+    <h3>Tu pedido</h3>
+    <div id="items-resumen"></div>
+
+    <div class="totales">
+      <div><span>Subtotal</span><span id="t-subtotal">$0</span></div>
+      <div><span>Domicilio</span><span id="t-domicilio">$0</span></div>
+      <div class="final"><span>Total</span><span id="t-total">$0</span></div>
+    </div>
+
+    <label>Nombre completo</label>
+    <input id="f-nombre" placeholder="Ej: Diego Puerto">
+
+    <label>Teléfono (WhatsApp)</label>
+    <input id="f-telefono" placeholder="Ej: 3001234567" inputmode="tel">
+
+    <label>Dirección de entrega</label>
+    <textarea id="f-direccion" rows="2" placeholder="Calle, barrio, punto de referencia"></textarea>
+
+    <label>Método de pago</label>
+    <div class="metodo-pago">
+      <div class="chip" data-pago="efectivo">Efectivo</div>
+      <div class="chip" data-pago="transferencia">Transferencia</div>
+      <div class="chip" data-pago="datafono">Datáfono</div>
+    </div>
+
+    <label>Notas (opcional)</label>
+    <textarea id="f-notas" rows="2" placeholder="Ej: sin cebolla, tocar el timbre 2 veces..."></textarea>
+
+    <button class="btn-enviar" id="btn-enviar" onclick="enviarPedido()">Enviar pedido</button>
+    <br><br>
+    <button class="btn-cerrar" onclick="cerrarCheckout()">Seguir viendo el menú</button>
+  </div>
+</div>
+
+<button id="chat-btn" onclick="abrirChat()">
+  💬
+  <span class="badge oculto" id="chat-badge">0</span>
+</button>
+
+<div class="overlay" id="chat-overlay">
+  <div id="chat-sheet">
+    <div id="chat-header">
+      <h3>Escríbenos</h3>
+      <button class="cerrar-chat" onclick="cerrarChat()">×</button>
+    </div>
+    <div id="chat-mensajes"></div>
+
+    <div id="chat-nombre-form" style="display:none;">
+      <p>Antes de empezar, ¿cuál es tu nombre?</p>
+      <input id="chat-nombre-input" placeholder="Tu nombre" style="max-width:220px; margin:0 auto 10px;">
+      <br>
+      <button class="btn-agregar" style="max-width:180px; margin:0 auto;" onclick="iniciarConversacion()">Empezar a chatear</button>
+    </div>
+
+    <div id="chat-input-fila">
+      <input id="chat-input" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter') enviarMensajeChat();">
+      <button id="chat-enviar-btn" onclick="enviarMensajeChat()">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================== CONFIGURA AQUÍ ===================== */
+const SUPABASE_URL = "https://aaaiqcboaqyxxoscbunp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_qQGo5_2DXjzsg9_yiNd1lA_QTjypFdA";
+const COSTO_DOMICILIO = 3000;
+/* ============================================================ */
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let carrito = [];
+let seleccionActual = {}; // { pizzaId: { tamano, cantidad } }
+let MENU = []; // se llena desde Supabase
+
+function money(n){
+  return "$" + Number(n).toLocaleString("es-CO");
+}
+
+async function cargarMenu(){
+  const { data, error } = await supabaseClient
+    .from("pizzas")
+    .select("*")
+    .eq("activa", true)
+    .order("orden", { ascending: true });
+
+  if(error){ console.error(error); return; }
+
+  MENU = data.map(p => ({
+    id: String(p.id),
+    nombre: p.nombre,
+    desc: p.descripcion || "",
+    foto: p.foto_url,
+    precios: {
+      Personal: p.precio_personal,
+      Mediana: p.precio_mediana,
+      Grande: p.precio_grande
+    }
+  }));
+  renderMenu();
+}
+
+function renderMenu(){
+  const cont = document.getElementById("menu");
+
+  if(MENU.length === 0){
+    cont.innerHTML = `<p style="text-align:center; color:rgba(242,233,216,0.4); font-size:13.5px;">Cargando menú...</p>`;
+    return;
+  }
+
+  cont.innerHTML = MENU.map(p => `
+    <div class="pizza" id="pizza-${p.id}">
+      ${p.foto ? `<img src="${p.foto}" alt="${p.nombre}" class="pizza-foto">` : ""}
+      <div class="pizza-top">
+        <div class="pizza-nombre">${p.nombre}</div>
+      </div>
+      <div class="pizza-desc">${p.desc}</div>
+      <div class="tamanos">
+        ${Object.entries(p.precios).filter(([,precio]) => precio != null).map(([tam, precio]) => `
+          <div class="tamano-btn" data-pizza="${p.id}" data-tam="${tam}" onclick="seleccionarTamano('${p.id}','${tam}')">
+            ${tam}<span class="precio">${money(precio)}</span>
+          </div>
+        `).join("")}
+      </div>
+      <div class="agregar-fila">
+        <div class="cantidad-selector">
+          <button class="cantidad-btn" onclick="cambiarCantidadPizza('${p.id}', -1)">−</button>
+          <span class="cantidad-numero" id="cantidad-pizza-${p.id}">1</span>
+          <button class="cantidad-btn" onclick="cambiarCantidadPizza('${p.id}', 1)">+</button>
+        </div>
+        <button class="btn-agregar" id="btn-add-${p.id}" disabled onclick="agregarAlCarrito('${p.id}')">
+          Elige un tamaño
+        </button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function seleccionarTamano(pizzaId, tam){
+  if(!seleccionActual[pizzaId]) seleccionActual[pizzaId] = { tamano:null, cantidad:1 };
+  seleccionActual[pizzaId].tamano = tam;
+
+  document.querySelectorAll(`.tamano-btn[data-pizza="${pizzaId}"]`).forEach(el=>{
+    el.classList.toggle("sel", el.dataset.tam === tam);
+  });
+  const btn = document.getElementById(`btn-add-${pizzaId}`);
+  btn.disabled = false;
+  btn.textContent = "Agregar al pedido";
+}
+
+function cambiarCantidadPizza(pizzaId, delta){
+  if(!seleccionActual[pizzaId]) seleccionActual[pizzaId] = { tamano:null, cantidad:1 };
+  const actual = seleccionActual[pizzaId].cantidad || 1;
+  const nueva = Math.max(1, actual + delta);
+  seleccionActual[pizzaId].cantidad = nueva;
+  document.getElementById(`cantidad-pizza-${pizzaId}`).textContent = nueva;
+}
+
+function agregarAlCarrito(pizzaId){
+  const pizza = MENU.find(p => p.id === pizzaId);
+  const sel = seleccionActual[pizzaId];
+  if(!sel || !sel.tamano) return;
+
+  const cantidad = sel.cantidad || 1;
+  const precioUnitario = pizza.precios[sel.tamano];
+  const precioTotal = precioUnitario * cantidad;
+
+  carrito.push({
+    tipo: "pizza",
+    pizza: pizza.nombre,
+    tamano: sel.tamano,
+    cantidad: cantidad,
+    precio_unitario: precioUnitario,
+    adicionales: [],
+    precio: precioTotal
+  });
+
+  // reset selección visual de esa pizza
+  seleccionActual[pizzaId] = { tamano:null, cantidad:1 };
+  document.querySelectorAll(`.tamano-btn[data-pizza="${pizzaId}"]`).forEach(el=>el.classList.remove("sel"));
+  document.getElementById(`cantidad-pizza-${pizzaId}`).textContent = 1;
+  const btn = document.getElementById(`btn-add-${pizzaId}`);
+  btn.disabled = true;
+  btn.textContent = "Elige un tamaño";
+
+  actualizarBarraCarrito();
+}
+
+function subtotalCarrito(){
+  return carrito.reduce((s,i)=>s+i.precio,0);
+}
+
+function actualizarBarraCarrito(){
+  const bar = document.getElementById("carrito-bar");
+  document.getElementById("carrito-count").textContent = carrito.length;
+  document.getElementById("carrito-total").textContent = money(subtotalCarrito());
+  bar.classList.toggle("show", carrito.length > 0);
+}
+
+function abrirCheckout(){
+  if(carrito.length === 0) return;
+  renderResumenCheckout();
+  document.getElementById("overlay").classList.add("show");
+}
+function cerrarCheckout(){
+  document.getElementById("overlay").classList.remove("show");
+}
+
+function renderResumenCheckout(){
+  const cont = document.getElementById("items-resumen");
+  cont.innerHTML = carrito.map((item, idx) => `
+    <div class="item-linea">
+      <span>${item.tipo === "bebida" ? `${item.nombre} x${item.cantidad}` : `${item.pizza} (${item.tamano})${item.cantidad > 1 ? " x" + item.cantidad : ""}`}</span>
+      <span>${money(item.precio)} <span class="quitar" onclick="quitarItem(${idx})">quitar</span></span>
+    </div>
+  `).join("");
+
+  const subtotal = subtotalCarrito();
+  const total = subtotal + COSTO_DOMICILIO;
+  document.getElementById("t-subtotal").textContent = money(subtotal);
+  document.getElementById("t-domicilio").textContent = money(COSTO_DOMICILIO);
+  document.getElementById("t-total").textContent = money(total);
+}
+
+function quitarItem(idx){
+  carrito.splice(idx,1);
+  actualizarBarraCarrito();
+  if(carrito.length === 0){ cerrarCheckout(); return; }
+  renderResumenCheckout();
+}
+
+let metodoPago = null;
+document.querySelectorAll(".metodo-pago .chip").forEach(chip=>{
+  chip.addEventListener("click", ()=>{
+    document.querySelectorAll(".metodo-pago .chip").forEach(c=>c.classList.remove("sel"));
+    chip.classList.add("sel");
+    metodoPago = chip.dataset.pago;
+  });
+});
+
+async function enviarPedido(){
+  const nombre = document.getElementById("f-nombre").value.trim();
+  const telefono = document.getElementById("f-telefono").value.trim();
+  const direccion = document.getElementById("f-direccion").value.trim();
+  const notas = document.getElementById("f-notas").value.trim();
+
+  if(!nombre || !telefono || !direccion || !metodoPago){
+    alert("Por favor completa nombre, teléfono, dirección y método de pago.");
+    return;
+  }
+
+  const subtotal = subtotalCarrito();
+  const total = subtotal + COSTO_DOMICILIO;
+
+  const btn = document.getElementById("btn-enviar");
+  btn.disabled = true;
+  btn.textContent = "Enviando...";
+
+  // Asegura que exista una conversación de chat para este cliente,
+  // así el negocio puede escribirle directamente desde su pedido.
+  const convId = idConversacion();
+  if(!nombreGuardado()){
+    localStorage.setItem("pizza_conversacion_nombre", nombre);
+  }
+  await supabaseClient.from("conversaciones").upsert({
+    id: convId,
+    cliente_nombre: nombreGuardado() || nombre
+  });
+
+  const { error } = await supabaseClient.from("pedidos").insert({
+    cliente_nombre: nombre,
+    cliente_telefono: telefono,
+    cliente_direccion: direccion,
+    items: carrito,
+    subtotal: subtotal,
+    costo_domicilio: COSTO_DOMICILIO,
+    total: total,
+    metodo_pago: metodoPago,
+    notas: notas,
+    estado: "nuevo",
+    conversacion_id: convId
+  });
+
+  if(error){
+    console.error(error);
+    alert("Hubo un problema enviando tu pedido. Intenta de nuevo o escríbenos por WhatsApp.");
+    btn.disabled = false;
+    btn.textContent = "Enviar pedido";
+    return;
+  }
+
+  document.getElementById("sheet-checkout").innerHTML = `
+    <div class="confirmacion">
+      <div class="check">✓</div>
+      <h3>¡Pedido recibido!</h3>
+      <p>Estamos preparando tu pizza. Tiempo estimado: 30-40 min.</p>
+      <button class="btn-enviar" onclick="location.reload()">Hacer otro pedido</button>
+    </div>
+  `;
+  carrito = [];
+}
+
+cargarMenu();
+
+// Si el negocio actualiza el menú (precios, fotos, nuevas pizzas) mientras
+// alguien está viendo la página, se refresca solo.
+supabaseClient
+  .channel("pizzas-realtime")
+  .on("postgres_changes", { event: "*", schema: "public", table: "pizzas" }, () => {
+    cargarMenu();
+  })
+  .subscribe();
+
+/* ===================== Bebidas ===================== */
+
+let BEBIDAS = [];
+let cantidadesBebidas = {}; // { bebidaId: cantidad }
+
+async function cargarBebidas(){
+  const { data, error } = await supabaseClient
+    .from("bebidas")
+    .select("*")
+    .eq("activa", true)
+    .order("orden", { ascending: true });
+
+  if(error){ console.error(error); return; }
+  BEBIDAS = data;
+  renderBebidas();
+}
+
+function renderBebidas(){
+  const cont = document.getElementById("bebidas");
+  if(BEBIDAS.length === 0){
+    cont.innerHTML = "";
+    return;
+  }
+  cont.innerHTML = BEBIDAS.map(b => {
+    if(cantidadesBebidas[b.id] === undefined) cantidadesBebidas[b.id] = 1;
+    return `
+      <div class="bebida">
+        ${b.foto_url ? `<img src="${b.foto_url}" class="bebida-foto">` : ""}
+        <div class="bebida-info">
+          <div class="bebida-nombre">${b.nombre}</div>
+          <div class="bebida-precio">${money(b.precio)} c/u</div>
+        </div>
+        <div class="cantidad-selector">
+          <button class="cantidad-btn" onclick="cambiarCantidadBebida(${b.id}, -1)">−</button>
+          <span class="cantidad-numero" id="cantidad-bebida-${b.id}">${cantidadesBebidas[b.id]}</span>
+          <button class="cantidad-btn" onclick="cambiarCantidadBebida(${b.id}, 1)">+</button>
+        </div>
+        <button class="btn-agregar-bebida" onclick="agregarBebidaAlCarrito(${b.id})">Agregar</button>
+      </div>
+    `;
+  }).join("");
+}
+
+function cambiarCantidadBebida(bebidaId, delta){
+  const actual = cantidadesBebidas[bebidaId] || 1;
+  const nueva = Math.max(1, actual + delta);
+  cantidadesBebidas[bebidaId] = nueva;
+  document.getElementById(`cantidad-bebida-${bebidaId}`).textContent = nueva;
+}
+
+function agregarBebidaAlCarrito(bebidaId){
+  const bebida = BEBIDAS.find(b => b.id === bebidaId);
+  const cantidad = cantidadesBebidas[bebidaId] || 1;
+
+  carrito.push({
+    tipo: "bebida",
+    nombre: bebida.nombre,
+    cantidad: cantidad,
+    precio_unitario: bebida.precio,
+    precio: bebida.precio * cantidad
+  });
+
+  cantidadesBebidas[bebidaId] = 1;
+  document.getElementById(`cantidad-bebida-${bebidaId}`).textContent = 1;
+
+  actualizarBarraCarrito();
+}
+
+cargarBebidas();
+
+supabaseClient
+  .channel("bebidas-realtime")
+  .on("postgres_changes", { event: "*", schema: "public", table: "bebidas" }, () => {
+    cargarBebidas();
+  })
+  .subscribe();
+
+/* ===================== Abierto / Cerrado ===================== */
+
+let negocioAbierto = true;
+
+function aplicarEstadoNegocio(abierto){
+  negocioAbierto = abierto;
+  document.body.classList.toggle("cerrado", !abierto);
+  document.getElementById("banner-cerrado").classList.toggle("show", !abierto);
+  // Si estaba con el carrito abierto y cierran el negocio, lo cerramos
+  if(!abierto) cerrarCheckout();
+}
+
+async function verificarEstadoNegocio(){
+  const { data, error } = await supabaseClient.from("config").select("abierto").eq("id", 1).single();
+  if(error){ console.error(error); return; }
+  aplicarEstadoNegocio(data.abierto);
+}
+
+verificarEstadoNegocio();
+
+supabaseClient
+  .channel("config-realtime")
+  .on("postgres_changes", { event: "*", schema: "public", table: "config" }, (payload) => {
+    aplicarEstadoNegocio(payload.new.abierto);
+  })
+  .subscribe();
+
+// Doble chequeo justo antes de enviar el pedido, por si se cerró justo en ese momento
+const enviarPedidoOriginal = enviarPedido;
+enviarPedido = async function(){
+  if(!negocioAbierto){
+    alert("Lo sentimos, acabamos de cerrar. No podemos recibir tu pedido en este momento.");
+    cerrarCheckout();
+    return;
+  }
+  return enviarPedidoOriginal();
+};
+
+/* ===================== Chat con el negocio ===================== */
+
+function idConversacion(){
+  let id = localStorage.getItem("pizza_conversacion_id");
+  if(!id){
+    id = crypto.randomUUID();
+    localStorage.setItem("pizza_conversacion_id", id);
+  }
+  return id;
+}
+function nombreGuardado(){
+  return localStorage.getItem("pizza_conversacion_nombre");
+}
+
+let chatCanalMensajes = null;
+let chatCanalConversacion = null;
+
+function horaMsg(iso){
+  return new Date(iso).toLocaleTimeString("es-CO", { hour:"2-digit", minute:"2-digit" });
+}
+
+function pintarMensajes(lista){
+  const cont = document.getElementById("chat-mensajes");
+  if(lista.length === 0){
+    cont.innerHTML = `<div id="chat-vacio">Escríbenos lo que necesites — horarios, alergias, cambios en tu pedido, lo que sea 🍕</div>`;
+    return;
+  }
+  cont.innerHTML = lista.map(m => `
+    <div class="msg msg-${m.remitente}">
+      ${m.texto}
+      <div class="msg-hora">${horaMsg(m.creado_en)}</div>
+    </div>
+  `).join("");
+  cont.scrollTop = cont.scrollHeight;
+}
+
+async function cargarMensajes(){
+  const { data, error } = await supabaseClient
+    .from("mensajes")
+    .select("*")
+    .eq("conversacion_id", idConversacion())
+    .order("creado_en", { ascending: true });
+  if(error){ console.error(error); return; }
+  pintarMensajes(data);
+}
+
+async function marcarLeidoCliente(){
+  await supabaseClient.from("conversaciones")
+    .update({ no_leidos_cliente: 0 })
+    .eq("id", idConversacion());
+  document.getElementById("chat-badge").classList.add("oculto");
+}
+
+async function abrirChat(){
+  document.getElementById("chat-overlay").classList.add("show");
+
+  const nombre = nombreGuardado();
+  if(!nombre){
+    document.getElementById("chat-nombre-form").style.display = "block";
+    document.getElementById("chat-input-fila").style.display = "none";
+    document.getElementById("chat-mensajes").innerHTML = "";
+    return;
+  }
+
+  await cargarMensajes();
+  await marcarLeidoCliente();
+  suscribirseChat();
+}
+
+function cerrarChat(){
+  document.getElementById("chat-overlay").classList.remove("show");
+}
+
+async function iniciarConversacion(){
+  const nombre = document.getElementById("chat-nombre-input").value.trim();
+  if(!nombre) return;
+  localStorage.setItem("pizza_conversacion_nombre", nombre);
+
+  const { error } = await supabaseClient.from("conversaciones").upsert({
+    id: idConversacion(),
+    cliente_nombre: nombre
+  });
+  if(error){ console.error(error); }
+
+  document.getElementById("chat-nombre-form").style.display = "none";
+  document.getElementById("chat-input-fila").style.display = "flex";
+  await cargarMensajes();
+  suscribirseChat();
+}
+
+async function enviarMensajeChat(){
+  const input = document.getElementById("chat-input");
+  const texto = input.value.trim();
+  if(!texto) return;
+  input.value = "";
+
+  const { error } = await supabaseClient.from("mensajes").insert({
+    conversacion_id: idConversacion(),
+    remitente: "cliente",
+    texto: texto
+  });
+  if(error){ console.error(error); alert("No se pudo enviar el mensaje, intenta de nuevo."); return; }
+  await cargarMensajes();
+}
+
+function suscribirseChat(){
+  if(chatCanalMensajes) return; // ya suscrito
+  chatCanalMensajes = supabaseClient
+    .channel("chat-cliente-" + idConversacion())
+    .on("postgres_changes",
+      { event: "INSERT", schema: "public", table: "mensajes", filter: `conversacion_id=eq.${idConversacion()}` },
+      async (payload) => {
+        await cargarMensajes();
+        if(payload.new.remitente === "negocio"){
+          const overlayAbierto = document.getElementById("chat-overlay").classList.contains("show");
+          if(overlayAbierto){
+            await marcarLeidoCliente();
+          } else {
+            mostrarBadgeChat();
+          }
+        }
+      }
+    )
+    .subscribe();
+}
+
+async function mostrarBadgeChat(){
+  const { data } = await supabaseClient.from("conversaciones").select("no_leidos_cliente").eq("id", idConversacion()).single();
+  const badge = document.getElementById("chat-badge");
+  if(data && data.no_leidos_cliente > 0){
+    badge.textContent = data.no_leidos_cliente;
+    badge.classList.remove("oculto");
+  }
+}
+
+// Si ya existe una conversación de una visita anterior, revisa si hay mensajes sin leer
+(async function initChatBadge(){
+  if(!nombreGuardado()) return;
+  await mostrarBadgeChat();
+})();
+</script>
+</body>
+</html>
