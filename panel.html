@@ -383,6 +383,88 @@
     align-items:center;
     justify-content:center;
   }
+
+  #tema-btn{
+    position:fixed;
+    right:164px;
+    bottom:22px;
+    width:58px; height:58px;
+    border-radius:50%;
+    background:var(--azul);
+    border:none;
+    color:white;
+    font-size:22px;
+    cursor:pointer;
+    box-shadow:0 6px 20px rgba(0,0,0,0.4);
+    z-index:25;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  #tema-overlay{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.6);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:40;
+  }
+  #tema-overlay.show{ display:flex; }
+  #tema-panel{
+    background:var(--carbon-2);
+    width:100%;
+    max-width:360px;
+    border-radius:16px;
+    border:1px solid var(--linea);
+    padding:20px;
+  }
+  #tema-panel h3{
+    font-family:'Fraunces',serif;
+    margin:0 0 16px;
+    font-size:18px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .tema-fila{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .tema-fila label{
+    font-size:13px;
+    color:rgba(242,233,216,0.7);
+  }
+  .tema-fila input[type="color"]{
+    width:44px; height:34px;
+    border:1px solid var(--linea);
+    border-radius:8px;
+    background:none;
+    cursor:pointer;
+    padding:0;
+  }
+  #tema-guardar{
+    width:100%;
+    background:var(--tomate);
+    color:white;
+    border:none;
+    border-radius:10px;
+    padding:12px;
+    font-weight:700;
+    cursor:pointer;
+    margin-top:6px;
+  }
+  #tema-restaurar{
+    width:100%;
+    background:none;
+    border:none;
+    color:rgba(242,233,216,0.5);
+    font-size:12.5px;
+    text-decoration:underline;
+    cursor:pointer;
+    margin-top:10px;
+  }
   #menu-admin-overlay{
     position:fixed; inset:0;
     background:rgba(0,0,0,0.6);
@@ -560,6 +642,31 @@
   </div>
 </div>
 
+<button id="tema-btn" onclick="abrirTemaPanel()" title="Colores del sitio">🎨</button>
+
+<div id="tema-overlay">
+  <div id="tema-panel">
+    <h3>
+      Colores del sitio
+      <button class="cerrar-chat-panel" onclick="cerrarTemaPanel()">×</button>
+    </h3>
+    <div class="tema-fila">
+      <label>Color principal (botones)</label>
+      <input type="color" id="color-primario">
+    </div>
+    <div class="tema-fila">
+      <label>Color secundario (precios)</label>
+      <input type="color" id="color-secundario">
+    </div>
+    <div class="tema-fila">
+      <label>Color de fondo</label>
+      <input type="color" id="color-fondo">
+    </div>
+    <button id="tema-guardar" onclick="guardarTema()">Guardar colores</button>
+    <button id="tema-restaurar" onclick="restaurarTema()">Restaurar colores originales</button>
+  </div>
+</div>
+
 <button id="menu-admin-btn" onclick="abrirMenuAdmin()" title="Gestionar menú">🍕</button>
 
 <div id="menu-admin-overlay">
@@ -728,6 +835,58 @@ async function toggleNegocio(){
 }
 
 cargarConfig();
+
+/* ===================== Colores del sitio ===================== */
+
+const COLORES_DEFECTO = {
+  color_primario: "#c8402c",
+  color_secundario: "#e8b04b",
+  color_fondo: "#1b1815"
+};
+
+async function abrirTemaPanel(){
+  document.getElementById("tema-overlay").classList.add("show");
+  const { data, error } = await supabaseClient
+    .from("config")
+    .select("color_primario, color_secundario, color_fondo")
+    .eq("id", 1)
+    .single();
+
+  if(error){ console.error(error); return; }
+
+  document.getElementById("color-primario").value = data.color_primario || COLORES_DEFECTO.color_primario;
+  document.getElementById("color-secundario").value = data.color_secundario || COLORES_DEFECTO.color_secundario;
+  document.getElementById("color-fondo").value = data.color_fondo || COLORES_DEFECTO.color_fondo;
+}
+
+function cerrarTemaPanel(){
+  document.getElementById("tema-overlay").classList.remove("show");
+}
+
+async function guardarTema(){
+  const color_primario = document.getElementById("color-primario").value;
+  const color_secundario = document.getElementById("color-secundario").value;
+  const color_fondo = document.getElementById("color-fondo").value;
+
+  const { error } = await supabaseClient.from("config").update({
+    color_primario, color_secundario, color_fondo
+  }).eq("id", 1);
+
+  if(error){ console.error(error); alert("No se pudo guardar. Intenta de nuevo."); return; }
+  alert("Colores actualizados ✓ Se van a ver reflejados en la página de pedidos.");
+}
+
+async function restaurarTema(){
+  if(!confirm("¿Restaurar los colores originales del sitio?")) return;
+
+  const { error } = await supabaseClient.from("config").update(COLORES_DEFECTO).eq("id", 1);
+  if(error){ console.error(error); alert("No se pudo restaurar."); return; }
+
+  document.getElementById("color-primario").value = COLORES_DEFECTO.color_primario;
+  document.getElementById("color-secundario").value = COLORES_DEFECTO.color_secundario;
+  document.getElementById("color-fondo").value = COLORES_DEFECTO.color_fondo;
+  alert("Colores restaurados ✓");
+}
 
 supabaseClient
   .channel("config-realtime")
