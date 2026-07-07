@@ -439,6 +439,10 @@
     display:flex;
     align-items:center;
     justify-content:center;
+    transition:bottom .2s ease;
+  }
+  body.carrito-visible #chat-btn{
+    bottom:92px;
   }
   #chat-btn .badge{
     position:absolute;
@@ -794,7 +798,9 @@ function actualizarBarraCarrito(){
   const bar = document.getElementById("carrito-bar");
   document.getElementById("carrito-count").textContent = carrito.length;
   document.getElementById("carrito-total").textContent = money(subtotalCarrito());
-  bar.classList.toggle("show", carrito.length > 0);
+  const visible = carrito.length > 0;
+  bar.classList.toggle("show", visible);
+  document.body.classList.toggle("carrito-visible", visible);
 }
 
 function abrirCheckout(){
