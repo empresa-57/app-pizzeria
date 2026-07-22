@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caja — Pizzería Girón</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,700;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --carbon:#1b1815;
+    --carbon-2:#242019;
+    --masa:#f2e9d8;
+    --tomate:#c8402c;
+    --tomate-2:#e0512f;
+    --albahaca:#5f7a4f;
+    --queso:#e8b04b;
+    --azul:#4a7ba6;
+    --linea: rgba(242,233,216,0.12);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--carbon);
+    color:var(--masa);
+    font-family:'Inter',sans-serif;
+    padding-bottom:110px;
+  }
+  header{
+    padding:20px;
+    border-bottom:1px solid var(--linea);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  header h1{
+    font-family:'Fraunces',serif;
+    font-size:22px;
+    margin:0;
+  }
+  header .fecha{
+    font-size:12.5px;
+    color:rgba(242,233,216,0.5);
+  }
+  .total-hoy{
+    text-align:right;
+  }
+  .total-hoy .label{
+    font-size:11px;
+    color:rgba(242,233,216,0.5);
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+  }
+  .total-hoy .valor{
+    font-family:'Fraunces',serif;
+    font-size:26px;
+    font-weight:700;
+    color:var(--queso);
+  }
+
+  main{
+    max-width:900px;
+    margin:0 auto;
+    padding:20px 16px;
+  }
+
+  /* Widget especial de porciones */
+  #widget-porciones{
+    background:var(--carbon-2);
+    border:1px solid var(--tomate);
+    border-radius:14px;
+    padding:16px 18px;
+    margin-bottom:24px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  #widget-porciones .info{
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+  #widget-porciones .icono{ font-size:32px; }
+  #widget-porciones .nombre{
+    font-family:'Fraunces',serif;
+    font-weight:700;
+    font-size:16px;
+  }
+  #widget-porciones .stock{
+    font-size:13px;
+    color:rgba(242,233,216,0.6);
+    margin-top:2px;
+  }
+  #widget-porciones .stock.bajo{ color:var(--tomate-2); font-weight:700; }
+  .btn-rueda{
+    background:var(--albahaca);
+    color:white;
+    border:none;
+    border-radius:10px;
+    padding:12px 16px;
+    font-weight:700;
+    font-size:13.5px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+
+  h2.section{
+    font-family:'Fraunces',serif;
+    font-size:20px;
+    margin:28px 0 14px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  h2.section .linea{
+    flex:1;
+    height:1px;
+    background:var(--linea);
+  }
+
+  .grid-productos{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
+    gap:14px;
+  }
+  .producto-card{
+    background:var(--carbon-2);
+    border:1px solid var(--linea);
+    border-radius:14px;
+    padding:14px 16px;
+  }
+  .producto-nombre{
+    font-weight:600;
+    font-size:14.5px;
+  }
+  .producto-precio{
+    font-size:13px;
+    color:var(--queso);
+    margin:2px 0 10px;
+  }
+  .producto-stock{
+    font-size:11.5px;
+    color:rgba(242,233,216,0.45);
+    margin-bottom:8px;
+  }
+  .producto-fila{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .cantidad-selector{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .cantidad-btn{
+    width:28px; height:28px;
+    border-radius:7px;
+    border:1px solid var(--linea);
+    background:transparent;
+    color:var(--masa);
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .cantidad-btn:hover{ border-color:var(--tomate-2); }
+  .cantidad-numero{
+    min-width:16px;
+    text-align:center;
+    font-weight:700;
+    font-size:13.5px;
+  }
+  .btn-agregar-producto{
+    flex:1;
+    background:var(--tomate);
+    color:white;
+    border:none;
+    border-radius:8px;
+    padding:8px 10px;
+    font-weight:600;
+    font-size:12.5px;
+    cursor:pointer;
+  }
+  .btn-agregar-producto:disabled{
+    background:rgba(242,233,216,0.1);
+    color:rgba(242,233,216,0.3);
+    cursor:not-allowed;
+  }
+
+  /* Barra flotante de venta actual */
+  #venta-bar{
+    position:fixed;
+    bottom:0; left:0; right:0;
+    background:var(--carbon-2);
+    border-top:1px solid var(--linea);
+    padding:14px 16px;
+    display:none;
+    z-index:20;
+  }
+  #venta-bar.show{ display:block; }
+  .venta-resumen{
+    max-width:900px;
+    margin:0 auto;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .venta-info{ font-size:13.5px; color:rgba(242,233,216,0.7); }
+  .venta-total{
+    font-family:'Fraunces',serif;
+    font-size:20px;
+    font-weight:700;
+    color:var(--queso);
+  }
+  .btn-ver-venta{
+    background:var(--tomate);
+    color:white;
+    border:none;
+    border-radius:10px;
+    padding:12px 20px;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+  }
+
+  /* Overlays genéricos */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.6);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:30;
+  }
+  .overlay.show{ display:flex; }
+  .overlay.centrado{ align-items:center; }
+  .sheet{
+    background:var(--carbon-2);
+    width:100%;
+    max-width:520px;
+    max-height:88vh;
+    overflow-y:auto;
+    border-radius:20px 20px 0 0;
+    padding:22px 20px 26px;
+    border-top:1px solid var(--linea);
+  }
+  .overlay.centrado .sheet{
+    border-radius:16px;
+    max-height:82vh;
+  }
+  .sheet h3{
+    font-family:'Fraunces',serif;
+    font-size:20px;
+    margin:0 0 16px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .cerrar-sheet{
+    background:none;
+    border:none;
+    color:rgba(242,233,216,0.5);
+    font-size:22px;
+    cursor:pointer;
+  }
+  .item-linea{
+    display:flex;
+    justify-content:space-between;
+    font-size:13.5px;
+    padding:9px 0;
+    border-bottom:1px solid var(--linea);
+    gap:10px;
+  }
+  .item-linea .quitar{
+    color:var(--tomate-2);
+    cursor:pointer;
+    font-size:12px;
+    text-decoration:underline;
+    white-space:nowrap;
+  }
+  .totales-venta{
+    margin-top:16px;
+    padding-top:14px;
+    border-top:1px solid var(--linea);
+    font-family:'Fraunces',serif;
+    font-size:19px;
+    font-weight:700;
+    color:var(--queso);
+    display:flex;
+    justify-content:space-between;
+  }
+  .btn-registrar{
+    width:100%;
+    background:var(--tomate);
+    color:white;
+    border:none;
+    border-radius:12px;
+    padding:15px;
+    font-weight:700;
+    font-size:15px;
+    margin-top:18px;
+    cursor:pointer;
+  }
+
+  /* Historial / resumen */
+  .venta-card{
+    background:var(--carbon-2);
+    border:1px solid var(--linea);
+    border-radius:12px;
+    padding:12px 14px;
+    margin-bottom:10px;
+  }
+  .venta-card-top{
+    display:flex;
+    justify-content:space-between;
+    font-size:12px;
+    color:rgba(242,233,216,0.45);
+    margin-bottom:6px;
+  }
+  .venta-card-items{
+    font-size:13px;
+    line-height:1.5;
+    margin-bottom:8px;
+  }
+  .venta-card-footer{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .venta-card-total{
+    font-weight:700;
+    color:var(--queso);
+  }
+  .btn-deshacer{
+    background:none;
+    border:1px solid rgba(200,64,44,0.4);
+    color:var(--tomate-2);
+    border-radius:7px;
+    padding:5px 10px;
+    font-size:11.5px;
+    cursor:pointer;
+  }
+  .resumen-tabla{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+  }
+  .resumen-tabla td{
+    padding:8px 4px;
+    border-bottom:1px solid var(--linea);
+  }
+  .resumen-tabla td:last-child{
+    text-align:right;
+    color:var(--queso);
+    font-weight:600;
+  }
+  #vacio-hoy{
+    color:rgba(242,233,216,0.35);
+    font-size:13px;
+    text-align:center;
+    padding:20px 0;
+  }
+
+  /* Botones flotantes */
+  .fab{
+    position:fixed;
+    bottom:22px;
+    width:56px; height:56px;
+    border-radius:50%;
+    border:none;
+    color:white;
+    font-size:22px;
+    cursor:pointer;
+    box-shadow:0 6px 20px rgba(0,0,0,0.4);
+    z-index:25;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:bottom .2s ease;
+  }
+  body.venta-visible .fab{ bottom:96px; }
+  #calc-btn{ right:18px; background:var(--azul); }
+  #admin-btn{ right:84px; background:var(--albahaca); }
+
+  /* Calculadora */
+  #calc-panel{
+    max-width:280px;
+    padding:16px;
+  }
+  #calc-pantalla{
+    background:var(--carbon);
+    border:1px solid var(--linea);
+    border-radius:10px;
+    padding:16px 14px;
+    text-align:right;
+    font-family:'Fraunces',serif;
+    font-size:28px;
+    margin-bottom:12px;
+    overflow-x:auto;
+    white-space:nowrap;
+  }
+  .calc-grid{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:8px;
+  }
+  .calc-tecla{
+    background:rgba(242,233,216,0.06);
+    border:1px solid var(--linea);
+    color:var(--masa);
+    border-radius:9px;
+    padding:16px 0;
+    font-size:16px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .calc-tecla:active{ background:rgba(242,233,216,0.15); }
+  .calc-tecla.op{ background:var(--tomate); border-color:var(--tomate); color:white; }
+  .calc-tecla.igual{ background:var(--albahaca); border-color:var(--albahaca); color:white; }
+  .calc-tecla.borrar{ color:var(--tomate-2); }
+
+  /* Admin de productos */
+  .admin-card{
+    background:var(--carbon);
+    border:1px solid var(--linea);
+    border-radius:11px;
+    padding:12px;
+    margin-bottom:10px;
+  }
+  .admin-fila{
+    display:flex;
+    gap:8px;
+    margin-bottom:8px;
+  }
+  .admin-fila input[type="text"],
+  .admin-fila input[type="number"]{
+    background:var(--carbon-2);
+    border:1px solid var(--linea);
+    color:var(--masa);
+    border-radius:7px;
+    padding:7px 9px;
+    font-size:12.5px;
+    font-family:inherit;
+    width:100%;
+  }
+  .admin-acciones{
+    display:flex;
+    gap:6px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .admin-acciones label{
+    font-size:11px;
+    color:rgba(242,233,216,0.5);
+    display:flex;
+    align-items:center;
+    gap:4px;
+    cursor:pointer;
+  }
+  .btn-mini{
+    background:rgba(242,233,216,0.08);
+    border:1px solid var(--linea);
+    color:var(--masa);
+    border-radius:7px;
+    padding:5px 10px;
+    font-size:11.5px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .btn-mini.guardar{ background:var(--albahaca); border-color:var(--albahaca); }
+  .btn-mini.borrar{ background:transparent; color:var(--tomate-2); border-color:rgba(200,64,44,0.4); }
+  #admin-agregar{
+    width:100%;
+    background:var(--tomate);
+    color:white;
+    border:none;
+    border-radius:10px;
+    padding:12px;
+    font-weight:700;
+    cursor:pointer;
+    margin-top:6px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🧾 Caja — Pizzería Girón</h1>
+    <div class="fecha" id="fecha-hoy"></div>
+  </div>
+  <div class="total-hoy">
+    <div class="label">Vendido hoy</div>
+    <div class="valor" id="total-hoy-valor">$0</div>
+  </div>
+</header>
+
+<main>
+  <div id="widget-porciones"></div>
+
+  <h2 class="section">Registrar venta <span class="linea"></span></h2>
+  <div class="grid-productos" id="grid-productos"></div>
+
+  <h2 class="section">Ventas de hoy <span class="linea"></span></h2>
+  <div id="historial-hoy"></div>
+
+  <h2 class="section">Resumen del día <span class="linea"></span></h2>
+  <table class="resumen-tabla" id="tabla-resumen"></table>
+</main>
+
+<div id="venta-bar">
+  <div class="venta-resumen">
+    <div class="venta-info"><span id="venta-count">0</span> item(s)</div>
+    <div class="venta-total" id="venta-total">$0</div>
+    <button class="btn-ver-venta" onclick="abrirVentaActual()">Ver venta</button>
+  </div>
+</div>
+
+<div class="overlay" id="venta-overlay">
+  <div class="sheet">
+    <h3>Venta actual <button class="cerrar-sheet" onclick="cerrarVentaActual()">×</button></h3>
+    <div id="items-venta-actual"></div>
+    <div class="totales-venta">
+      <span>Total</span>
+      <span id="total-venta-actual">$0</span>
+    </div>
+    <button class="btn-registrar" id="btn-registrar-venta" onclick="registrarVenta()">Registrar venta</button>
+  </div>
+</div>
+
+<button class="fab" id="calc-btn" onclick="abrirCalculadora()" title="Calculadora">🧮</button>
+<button class="fab" id="admin-btn" onclick="abrirAdmin()" title="Gestionar productos">⚙️</button>
+
+<div class="overlay centrado" id="calc-overlay">
+  <div class="sheet" id="calc-panel">
+    <h3>Calculadora <button class="cerrar-sheet" onclick="cerrarCalculadora()">×</button></h3>
+    <div id="calc-pantalla">0</div>
+    <div class="calc-grid">
+      <button class="calc-tecla borrar" onclick="calcBorrar()">C</button>
+      <button class="calc-tecla" onclick="calcTecla('(')">(</button>
+      <button class="calc-tecla" onclick="calcTecla(')')">)</button>
+      <button class="calc-tecla op" onclick="calcTecla('/')">÷</button>
+
+      <button class="calc-tecla" onclick="calcTecla('7')">7</button>
+      <button class="calc-tecla" onclick="calcTecla('8')">8</button>
+      <button class="calc-tecla" onclick="calcTecla('9')">9</button>
+      <button class="calc-tecla op" onclick="calcTecla('*')">×</button>
+
+      <button class="calc-tecla" onclick="calcTecla('4')">4</button>
+      <button class="calc-tecla" onclick="calcTecla('5')">5</button>
+      <button class="calc-tecla" onclick="calcTecla('6')">6</button>
+      <button class="calc-tecla op" onclick="calcTecla('-')">−</button>
+
+      <button class="calc-tecla" onclick="calcTecla('1')">1</button>
+      <button class="calc-tecla" onclick="calcTecla('2')">2</button>
+      <button class="calc-tecla" onclick="calcTecla('3')">3</button>
+      <button class="calc-tecla op" onclick="calcTecla('+')">+</button>
+
+      <button class="calc-tecla" onclick="calcTecla('0')">0</button>
+      <button class="calc-tecla" onclick="calcTecla('.')">.</button>
+      <button class="calc-tecla borrar" onclick="calcBorrarUltimo()">⌫</button>
+      <button class="calc-tecla igual" onclick="calcIgual()">=</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay centrado" id="admin-overlay">
+  <div class="sheet" id="admin-panel" style="max-width:560px;">
+    <h3>Gestionar productos <button class="cerrar-sheet" onclick="cerrarAdmin()">×</button></h3>
+    <div id="admin-lista"></div>
+    <button id="admin-agregar" onclick="agregarProductoNuevo()">+ Agregar producto nuevo</button>
+  </div>
+</div>
+
+<script>
+/* ===================== CONFIGURA AQUÍ ===================== */
+const SUPABASE_URL = "https://aaaiqcboaqyxxoscbunp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_qQGo5_2DXjzsg9_yiNd1lA_QTjypFdA";
+/* ============================================================ */
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function money(n){
+  return "$" + Number(n || 0).toLocaleString("es-CO");
+}
+
+document.getElementById("fecha-hoy").textContent = new Date().toLocaleDateString("es-CO", {
+  weekday: "long", day: "numeric", month: "long"
+});
+
+/* ===================== Productos ===================== */
+
+let PRODUCTOS = [];
+let cantidades = {}; // { productoId: cantidad seleccionada }
+let ventaActual = []; // items agregados a la venta en curso
+
+async function cargarProductos(){
+  const { data, error } = await supabaseClient
+    .from("caja_productos")
+    .select("*")
+    .eq("activo", true)
+    .order("orden", { ascending: true });
+
+  if(error){ console.error(error); return; }
+  PRODUCTOS = data;
+  renderWidgetPorciones();
+  renderProductos();
+}
+
+function renderWidgetPorciones(){
+  const cont = document.getElementById("widget-porciones");
+  const producto = PRODUCTOS.find(p => p.es_porcionado);
+  if(!producto){ cont.innerHTML = ""; return; }
+
+  const stock = producto.stock_porciones || 0;
+  cont.innerHTML = `
+    <div class="info">
+      <div class="icono">🍕</div>
+      <div>
+        <div class="nombre">${producto.nombre}</div>
+        <div class="stock ${stock <= 4 ? "bajo" : ""}">${stock} porciones disponibles${stock === 0 ? " — ¡se acabaron!" : ""}</div>
+      </div>
+    </div>
+    <button class="btn-rueda" onclick="agregarRueda(${producto.id}, ${producto.porciones_por_lote || 8})">
+      + Agregar rueda hecha (+${producto.porciones_por_lote || 8} porciones)
+    </button>
+  `;
+}
+
+async function agregarRueda(productoId, cantidadLote){
+  const { error } = await supabaseClient.rpc("ajustar_stock_porciones", {
+    prod_id: productoId,
+    delta: cantidadLote
+  });
+  if(error){ console.error(error); alert("No se pudo agregar la rueda."); return; }
+  cargarProductos();
+}
+
+function renderProductos(){
+  const cont = document.getElementById("grid-productos");
+  cont.innerHTML = PRODUCTOS.map(p => {
+    if(cantidades[p.id] === undefined) cantidades[p.id] = 1;
+    const sinStock = p.es_porcionado && (p.stock_porciones || 0) <= 0;
+    return `
+      <div class="producto-card">
+        <div class="producto-nombre">${p.nombre}</div>
+        <div class="producto-precio">${money(p.precio)} ${p.es_porcionado ? "c/u" : ""}</div>
+        ${p.es_porcionado ? `<div class="producto-stock">Disponibles: ${p.stock_porciones || 0}</div>` : ""}
+        <div class="producto-fila">
+          <div class="cantidad-selector">
+            <button class="cantidad-btn" onclick="cambiarCantidad(${p.id}, -1)">−</button>
+            <span class="cantidad-numero" id="cantidad-${p.id}">${cantidades[p.id]}</span>
+            <button class="cantidad-btn" onclick="cambiarCantidad(${p.id}, 1)">+</button>
+          </div>
+          <button class="btn-agregar-producto" ${sinStock ? "disabled" : ""} onclick="agregarAVentaActual(${p.id})">
+            ${sinStock ? "Sin stock" : "Agregar"}
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function cambiarCantidad(productoId, delta){
+  const producto = PRODUCTOS.find(p => p.id === productoId);
+  const actual = cantidades[productoId] || 1;
+  let nueva = actual + delta;
+  nueva = Math.max(1, nueva);
+  if(producto.es_porcionado){
+    nueva = Math.min(nueva, Math.max(1, producto.stock_porciones || 1));
+  }
+  cantidades[productoId] = nueva;
+  document.getElementById(`cantidad-${productoId}`).textContent = nueva;
+}
+
+function agregarAVentaActual(productoId){
+  const producto = PRODUCTOS.find(p => p.id === productoId);
+  const cantidad = cantidades[productoId] || 1;
+
+  if(producto.es_porcionado && cantidad > (producto.stock_porciones || 0)){
+    alert("No hay suficientes porciones disponibles.");
+    return;
+  }
+
+  ventaActual.push({
+    producto_id: producto.id,
+    nombre: producto.nombre,
+    cantidad: cantidad,
+    precio_unitario: producto.precio,
+    total: producto.precio * cantidad,
+    es_porcionado: producto.es_porcionado
+  });
+
+  cantidades[productoId] = 1;
+  document.getElementById(`cantidad-${productoId}`).textContent = 1;
+
+  actualizarBarraVenta();
+}
+
+function subtotalVentaActual(){
+  return ventaActual.reduce((s, i) => s + i.total, 0);
+}
+
+function actualizarBarraVenta(){
+  const bar = document.getElementById("venta-bar");
+  document.getElementById("venta-count").textContent = ventaActual.length;
+  document.getElementById("venta-total").textContent = money(subtotalVentaActual());
+  const visible = ventaActual.length > 0;
+  bar.classList.toggle("show", visible);
+  document.body.classList.toggle("venta-visible", visible);
+}
+
+function abrirVentaActual(){
+  if(ventaActual.length === 0) return;
+  renderVentaActual();
+  document.getElementById("venta-overlay").classList.add("show");
+}
+function cerrarVentaActual(){
+  document.getElementById("venta-overlay").classList.remove("show");
+}
+
+function renderVentaActual(){
+  const cont = document.getElementById("items-venta-actual");
+  cont.innerHTML = ventaActual.map((item, idx) => `
+    <div class="item-linea">
+      <span>${item.nombre} x${item.cantidad}</span>
+      <span>${money(item.total)} <span class="quitar" onclick="quitarItemVenta(${idx})">quitar</span></span>
+    </div>
+  `).join("");
+  document.getElementById("total-venta-actual").textContent = money(subtotalVentaActual());
+}
+
+function quitarItemVenta(idx){
+  ventaActual.splice(idx, 1);
+  actualizarBarraVenta();
+  if(ventaActual.length === 0){ cerrarVentaActual(); return; }
+  renderVentaActual();
+}
+
+async function registrarVenta(){
+  if(ventaActual.length === 0) return;
+  const btn = document.getElementById("btn-registrar-venta");
+  btn.disabled = true;
+  btn.textContent = "Registrando...";
+
+  const grupoId = crypto.randomUUID();
+
+  const filas = ventaActual.map(item => ({
+    producto_id: item.producto_id,
+    producto_nombre: item.nombre,
+    cantidad: item.cantidad,
+    precio_unitario: item.precio_unitario,
+    total: item.total,
+    venta_grupo_id: grupoId
+  }));
+
+  const { error } = await supabaseClient.from("caja_ventas").insert(filas);
+  if(error){
+    console.error(error);
+    alert("No se pudo registrar la venta. Intenta de nuevo.");
+    btn.disabled = false;
+    btn.textContent = "Registrar venta";
+    return;
+  }
+
+  // Descuenta el stock de las porciones vendidas
+  for(const item of ventaActual){
+    if(item.es_porcionado){
+      await supabaseClient.rpc("ajustar_stock_porciones", {
+        prod_id: item.producto_id,
+        delta: -item.cantidad
+      });
+    }
+  }
+
+  ventaActual = [];
+  actualizarBarraVenta();
+  cerrarVentaActual();
+  btn.disabled = false;
+  btn.textContent = "Registrar venta";
+
+  cargarProductos();
+  cargarHistorialHoy();
+}
+
+/* ===================== Historial y resumen de hoy ===================== */
+
+async function cargarHistorialHoy(){
+  const hoyInicio = new Date();
+  hoyInicio.setHours(0,0,0,0);
+
+  const { data, error } = await supabaseClient
+    .from("caja_ventas")
+    .select("*")
+    .gte("creado_en", hoyInicio.toISOString())
+    .order("creado_en", { ascending: false });
+
+  if(error){ console.error(error); return; }
+
+  renderHistorialHoy(data);
+  renderResumenHoy(data);
+
+  const totalHoy = data.reduce((s, v) => s + Number(v.total), 0);
+  document.getElementById("total-hoy-valor").textContent = money(totalHoy);
+}
+
+function renderHistorialHoy(ventas){
+  const cont = document.getElementById("historial-hoy");
+  if(ventas.length === 0){
+    cont.innerHTML = `<div id="vacio-hoy">Todavía no has registrado ventas hoy.</div>`;
+    return;
+  }
+
+  // Agrupa por venta_grupo_id (varios productos vendidos juntos = una cuenta)
+  const grupos = {};
+  ventas.forEach(v => {
+    const key = v.venta_grupo_id || `sola-${v.id}`;
+    if(!grupos[key]) grupos[key] = [];
+    grupos[key].push(v);
+  });
+
+  cont.innerHTML = Object.entries(grupos).map(([grupoId, items]) => {
+    const total = items.reduce((s, i) => s + Number(i.total), 0);
+    const hora = new Date(items[0].creado_en).toLocaleTimeString("es-CO", { hour:"2-digit", minute:"2-digit" });
+    const itemsTexto = items.map(i => `${i.producto_nombre} x${i.cantidad}`).join(", ");
+    return `
+      <div class="venta-card">
+        <div class="venta-card-top"><span>${hora}</span></div>
+        <div class="venta-card-items">${itemsTexto}</div>
+        <div class="venta-card-footer">
+          <span class="venta-card-total">${money(total)}</span>
+          <button class="btn-deshacer" onclick="deshacerVenta('${grupoId}')">Deshacer</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+async function deshacerVenta(grupoId){
+  if(!confirm("¿Deshacer esta venta? Esto la borra del historial y devuelve las porciones al inventario si aplica.")) return;
+
+  let filas;
+  if(grupoId.startsWith("sola-")){
+    const id = grupoId.replace("sola-", "");
+    const { data } = await supabaseClient.from("caja_ventas").select("*").eq("id", id);
+    filas = data;
+  } else {
+    const { data } = await supabaseClient.from("caja_ventas").select("*").eq("venta_grupo_id", grupoId);
+    filas = data;
+  }
+
+  if(!filas) return;
+
+  // Devuelve el stock de las porciones que se vendieron en esa venta
+  for(const fila of filas){
+    const producto = PRODUCTOS.find(p => p.id === fila.producto_id);
+    if(producto && producto.es_porcionado){
+      await supabaseClient.rpc("ajustar_stock_porciones", {
+        prod_id: fila.producto_id,
+        delta: fila.cantidad
+      });
+    }
+  }
+
+  const ids = filas.map(f => f.id);
+  await supabaseClient.from("caja_ventas").delete().in("id", ids);
+
+  cargarProductos();
+  cargarHistorialHoy();
+}
+
+function renderResumenHoy(ventas){
+  const tabla = document.getElementById("tabla-resumen");
+  if(ventas.length === 0){
+    tabla.innerHTML = `<tr><td colspan="2" style="text-align:center; color:rgba(242,233,216,0.35);">Sin datos todavía</td></tr>`;
+    return;
+  }
+
+  const porProducto = {};
+  ventas.forEach(v => {
+    if(!porProducto[v.producto_nombre]) porProducto[v.producto_nombre] = { cantidad: 0, total: 0 };
+    porProducto[v.producto_nombre].cantidad += v.cantidad;
+    porProducto[v.producto_nombre].total += Number(v.total);
+  });
+
+  tabla.innerHTML = Object.entries(porProducto).map(([nombre, datos]) => `
+    <tr>
+      <td>${nombre} <span style="color:rgba(242,233,216,0.4);">x${datos.cantidad}</span></td>
+      <td>${money(datos.total)}</td>
+    </tr>
+  `).join("");
+}
+
+/* ===================== Calculadora ===================== */
+
+let calcExpresion = "";
+
+function abrirCalculadora(){
+  document.getElementById("calc-overlay").classList.add("show");
+}
+function cerrarCalculadora(){
+  document.getElementById("calc-overlay").classList.remove("show");
+}
+function calcActualizarPantalla(){
+  document.getElementById("calc-pantalla").textContent = calcExpresion || "0";
+}
+function calcTecla(t){
+  calcExpresion += t;
+  calcActualizarPantalla();
+}
+function calcBorrar(){
+  calcExpresion = "";
+  calcActualizarPantalla();
+}
+function calcBorrarUltimo(){
+  calcExpresion = calcExpresion.slice(0, -1);
+  calcActualizarPantalla();
+}
+function calcIgual(){
+  try{
+    const soloPermitidos = /^[0-9+\-*/().\s]*$/;
+    if(!soloPermitidos.test(calcExpresion)) throw new Error("expresión inválida");
+    const resultado = Function(`"use strict"; return (${calcExpresion || 0})`)();
+    calcExpresion = String(resultado);
+    calcActualizarPantalla();
+  } catch(e){
+    document.getElementById("calc-pantalla").textContent = "Error";
+    calcExpresion = "";
+  }
+}
+
+/* ===================== Administración de productos ===================== */
+
+function abrirAdmin(){
+  document.getElementById("admin-overlay").classList.add("show");
+  cargarProductosAdmin();
+}
+function cerrarAdmin(){
+  document.getElementById("admin-overlay").classList.remove("show");
+}
+
+async function cargarProductosAdmin(){
+  const { data, error } = await supabaseClient
+    .from("caja_productos")
+    .select("*")
+    .order("orden", { ascending: true });
+
+  if(error){ console.error(error); return; }
+
+  const cont = document.getElementById("admin-lista");
+  cont.innerHTML = data.map(p => `
+    <div class="admin-card">
+      <div class="admin-fila">
+        <input type="text" id="adm-nombre-${p.id}" value="${p.nombre}" placeholder="Nombre">
+        <input type="number" id="adm-precio-${p.id}" value="${p.precio}" placeholder="Precio" style="max-width:110px;">
+      </div>
+      ${p.es_porcionado ? `
+        <div class="admin-fila">
+          <input type="number" id="adm-stock-${p.id}" value="${p.stock_porciones || 0}" placeholder="Stock actual" style="max-width:140px;">
+          <span style="font-size:11.5px; color:rgba(242,233,216,0.4); align-self:center;">porciones disponibles (ajuste manual)</span>
+        </div>
+      ` : ""}
+      <div class="admin-acciones">
+        <button class="btn-mini guardar" onclick="guardarProducto(${p.id}, ${p.es_porcionado})">Guardar</button>
+        <label>
+          <input type="checkbox" ${p.activo ? "checked" : ""} onchange="toggleActivoProducto(${p.id}, this.checked)">
+          Visible
+        </label>
+        <button class="btn-mini borrar" onclick="eliminarProducto(${p.id})">Borrar</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function guardarProducto(id, esPorcionado){
+  const nombre = document.getElementById(`adm-nombre-${id}`).value.trim();
+  const precio = parseFloat(document.getElementById(`adm-precio-${id}`).value) || 0;
+
+  const cambios = { nombre, precio };
+  if(esPorcionado){
+    const stockInput = document.getElementById(`adm-stock-${id}`);
+    if(stockInput) cambios.stock_porciones = parseInt(stockInput.value) || 0;
+  }
+
+  const { error } = await supabaseClient.from("caja_productos").update(cambios).eq("id", id);
+  if(error){ console.error(error); alert("No se pudo guardar."); return; }
+  alert("Producto actualizado ✓");
+  cargarProductos();
+}
+
+async function toggleActivoProducto(id, activo){
+  const { error } = await supabaseClient.from("caja_productos").update({ activo }).eq("id", id);
+  if(error){ console.error(error); alert("No se pudo actualizar."); }
+  cargarProductos();
+}
+
+async function eliminarProducto(id){
+  if(!confirm("¿Borrar este producto? No afecta el historial de ventas ya registradas.")) return;
+  const { error } = await supabaseClient.from("caja_productos").delete().eq("id", id);
+  if(error){ console.error(error); alert("No se pudo borrar."); return; }
+  cargarProductosAdmin();
+  cargarProductos();
+}
+
+async function agregarProductoNuevo(){
+  const { error } = await supabaseClient.from("caja_productos").insert({
+    nombre: "Nuevo producto",
+    precio: 0,
+    activo: true,
+    es_porcionado: false,
+    orden: 999
+  });
+  if(error){ console.error(error); alert("No se pudo agregar."); return; }
+  cargarProductosAdmin();
+  cargarProductos();
+}
+
+/* ===================== Inicio + tiempo real ===================== */
+
+cargarProductos();
+cargarHistorialHoy();
+
+supabaseClient
+  .channel("caja-productos-realtime")
+  .on("postgres_changes", { event: "*", schema: "public", table: "caja_productos" }, () => {
+    cargarProductos();
+  })
+  .subscribe();
+
+supabaseClient
+  .channel("caja-ventas-realtime")
+  .on("postgres_changes", { event: "*", schema: "public", table: "caja_ventas" }, () => {
+    cargarHistorialHoy();
+  })
+  .subscribe();
+</script>
+</body>
+</html>
