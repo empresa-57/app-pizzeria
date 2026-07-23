@@ -611,6 +611,37 @@
     cursor:pointer;
     margin-top:6px;
   }
+
+  .zona-peligro{
+    margin-top:26px;
+    padding-top:18px;
+    border-top:1px dashed rgba(200,64,44,0.4);
+  }
+  .zona-peligro-titulo{
+    font-weight:700;
+    font-size:13.5px;
+    color:var(--tomate-2);
+    margin-bottom:6px;
+  }
+  .zona-peligro-texto{
+    font-size:12px;
+    color:rgba(242,233,216,0.5);
+    line-height:1.5;
+    margin:0 0 12px;
+  }
+  #btn-reiniciar-todo{
+    width:100%;
+    background:transparent;
+    border:1px solid var(--tomate);
+    color:var(--tomate-2);
+    border-radius:10px;
+    padding:12px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  #btn-reiniciar-todo:hover{
+    background:rgba(200,64,44,0.1);
+  }
 </style>
 </head>
 <body>
@@ -728,6 +759,12 @@
     <h3>Gestionar productos <button class="cerrar-sheet" onclick="cerrarAdmin()">×</button></h3>
     <div id="admin-lista"></div>
     <button id="admin-agregar" onclick="agregarProductoNuevo()">+ Agregar producto nuevo</button>
+
+    <div class="zona-peligro">
+      <div class="zona-peligro-titulo">⚠️ Zona de peligro</div>
+      <p class="zona-peligro-texto">Esto borra permanentemente todas las ventas, gastos y cierres registrados, y pone el stock de porciones en 0. No borra tus productos ni precios. No se puede deshacer.</p>
+      <button id="btn-reiniciar-todo" onclick="reiniciarTodo()">🗑️ Reiniciar todo (borrar historial)</button>
+    </div>
   </div>
 </div>
 
@@ -1285,6 +1322,46 @@ async function agregarProductoNuevo(){
   if(error){ console.error(error); alert("No se pudo agregar."); return; }
   cargarProductosAdmin();
   cargarProductos();
+}
+
+async function reiniciarTodo(){
+  const primeraConfirmacion = confirm(
+    "¿Seguro que quieres borrar TODO el historial de ventas, gastos y cierres de caja?\n\nEsto NO se puede deshacer. Tus productos y precios NO se van a borrar."
+  );
+  if(!primeraConfirmacion) return;
+
+  const escrito = prompt('Para confirmar, escribe la palabra BORRAR (en mayúsculas) y presiona Aceptar:');
+  if(escrito !== "BORRAR"){
+    alert("No coincide con 'BORRAR', así que no se borró nada.");
+    return;
+  }
+
+  const btn = document.getElementById("btn-reiniciar-todo");
+  btn.disabled = true;
+  btn.textContent = "Borrando...";
+
+  try{
+    await supabaseClient.from("caja_ventas").delete().gt("id", 0);
+    await supabaseClient.from("gastos").delete().gt("id", 0);
+    await supabaseClient.from("cierres_caja").delete().gt("id", 0);
+    await supabaseClient.from("caja_productos").update({ stock_porciones: 0 }).eq("es_porcionado", true);
+  } catch(e){
+    console.error(e);
+    alert("Algo falló al borrar. Revisa la consola o intenta de nuevo.");
+    btn.disabled = false;
+    btn.textContent = "🗑️ Reiniciar todo (borrar historial)";
+    return;
+  }
+
+  alert("Listo, todo quedó reiniciado ✓");
+  btn.disabled = false;
+  btn.textContent = "🗑️ Reiniciar todo (borrar historial)";
+
+  await cargarFechasCerradas();
+  cargarProductos();
+  cargarVistaFecha();
+  cargarTotalHoyHeader();
+  cerrarAdmin();
 }
 
 /* ===================== Cierre de caja ===================== */
