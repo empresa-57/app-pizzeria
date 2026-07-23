@@ -369,6 +369,129 @@
     padding:20px 0;
   }
 
+  /* Selector de fecha */
+  .selector-fecha{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+  }
+  #input-fecha{
+    background:var(--carbon-2);
+    border:1px solid var(--linea);
+    color:var(--masa);
+    border-radius:9px;
+    padding:9px 12px;
+    font-size:13.5px;
+    font-family:inherit;
+    color-scheme:dark;
+  }
+  #badge-cierre{
+    font-size:12px;
+    color:var(--albahaca);
+    font-weight:600;
+  }
+  #badge-cierre.pendiente{ color:rgba(242,233,216,0.4); font-weight:400; }
+
+  /* Gastos */
+  .gasto-form{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-bottom:14px;
+  }
+  .gasto-form input[type="text"],
+  .gasto-form input[type="number"]{
+    background:var(--carbon-2);
+    border:1px solid var(--linea);
+    color:var(--masa);
+    border-radius:9px;
+    padding:9px 12px;
+    font-size:13px;
+    font-family:inherit;
+    flex:1;
+    min-width:120px;
+  }
+  .gasto-form input[type="number"]{ max-width:120px; }
+  .btn-agregar-gasto{
+    background:var(--tomate);
+    color:white;
+    border:none;
+    border-radius:9px;
+    padding:9px 16px;
+    font-weight:600;
+    font-size:13px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .gasto-linea{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:var(--carbon-2);
+    border:1px solid var(--linea);
+    border-radius:10px;
+    padding:10px 14px;
+    margin-bottom:8px;
+    font-size:13px;
+  }
+  .gasto-linea .gasto-info{ display:flex; flex-direction:column; }
+  .gasto-linea .gasto-categoria{
+    font-size:11px;
+    color:rgba(242,233,216,0.45);
+  }
+  .gasto-linea .gasto-monto{
+    color:var(--tomate-2);
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .gasto-linea .quitar{
+    color:rgba(242,233,216,0.4);
+    cursor:pointer;
+    font-size:12px;
+    text-decoration:underline;
+    font-weight:400;
+  }
+
+  /* Resumen de ganancia */
+  .resumen-ganancia{
+    margin-top:14px;
+    padding-top:14px;
+    border-top:1px solid var(--linea);
+  }
+  .fila-ganancia{
+    display:flex;
+    justify-content:space-between;
+    font-size:13.5px;
+    padding:5px 0;
+    color:rgba(242,233,216,0.7);
+  }
+  .fila-ganancia.ganancia-final{
+    font-family:'Fraunces',serif;
+    font-size:20px;
+    font-weight:700;
+    color:var(--queso);
+    padding-top:10px;
+    margin-top:4px;
+    border-top:1px solid var(--linea);
+  }
+
+  #btn-cerrar-caja{
+    width:100%;
+    background:var(--albahaca);
+    color:white;
+    border:none;
+    border-radius:12px;
+    padding:15px;
+    font-weight:700;
+    font-size:14.5px;
+    margin:22px 0 10px;
+    cursor:pointer;
+  }
+
   /* Botones flotantes */
   .fab{
     position:fixed;
@@ -509,11 +632,39 @@
   <h2 class="section">Registrar venta <span class="linea"></span></h2>
   <div class="grid-productos" id="grid-productos"></div>
 
-  <h2 class="section">Ventas de hoy <span class="linea"></span></h2>
+  <h2 class="section">Consultar por fecha <span class="linea"></span></h2>
+  <div class="selector-fecha">
+    <input type="date" id="input-fecha" onchange="cambiarFechaSeleccionada()">
+    <span id="badge-cierre"></span>
+  </div>
+
+  <h2 class="section">Ventas <span class="linea"></span></h2>
   <div id="historial-hoy"></div>
 
-  <h2 class="section">Resumen del día <span class="linea"></span></h2>
+  <h2 class="section">Gastos / compras <span class="linea"></span></h2>
+  <div class="gasto-form">
+    <input type="text" id="gasto-descripcion" placeholder="Ej: Bulto de harina">
+    <input type="text" id="gasto-categoria" placeholder="Categoría (opcional)" list="lista-categorias">
+    <datalist id="lista-categorias">
+      <option value="Insumos">
+      <option value="Servicios">
+      <option value="Transporte">
+      <option value="Otros">
+    </datalist>
+    <input type="number" id="gasto-monto" placeholder="Monto">
+    <button class="btn-agregar-gasto" onclick="registrarGasto()">+ Agregar gasto</button>
+  </div>
+  <div id="lista-gastos"></div>
+
+  <h2 class="section">Resumen <span class="linea"></span></h2>
   <table class="resumen-tabla" id="tabla-resumen"></table>
+  <div class="resumen-ganancia">
+    <div class="fila-ganancia"><span>Total ventas</span><span id="resumen-ventas">$0</span></div>
+    <div class="fila-ganancia"><span>Total gastos</span><span id="resumen-gastos">$0</span></div>
+    <div class="fila-ganancia ganancia-final"><span>Ganancia neta</span><span id="resumen-ganancia">$0</span></div>
+  </div>
+
+  <button id="btn-cerrar-caja" onclick="cerrarCajaDelDia()">🔒 Cerrar caja de este día</button>
 </main>
 
 <div id="venta-bar">
@@ -788,34 +939,77 @@ async function registrarVenta(){
   btn.textContent = "Registrar venta";
 
   cargarProductos();
-  cargarHistorialHoy();
+  cargarVistaFecha();
+  cargarTotalHoyHeader();
 }
 
-/* ===================== Historial y resumen de hoy ===================== */
+/* ===================== Fecha seleccionada ===================== */
 
-async function cargarHistorialHoy(){
-  const hoyInicio = new Date();
-  hoyInicio.setHours(0,0,0,0);
+function fechaHoyISO(){
+  const hoy = new Date();
+  hoy.setMinutes(hoy.getMinutes() - hoy.getTimezoneOffset()); // ajusta a hora local
+  return hoy.toISOString().slice(0, 10);
+}
 
-  const { data, error } = await supabaseClient
+let fechaSeleccionada = fechaHoyISO();
+
+function rangoDelDia(fechaISO){
+  const inicio = new Date(fechaISO + "T00:00:00");
+  const fin = new Date(fechaISO + "T23:59:59.999");
+  return { inicio: inicio.toISOString(), fin: fin.toISOString() };
+}
+
+document.getElementById("input-fecha").value = fechaSeleccionada;
+
+function cambiarFechaSeleccionada(){
+  fechaSeleccionada = document.getElementById("input-fecha").value || fechaHoyISO();
+  cargarVistaFecha();
+}
+
+async function cargarVistaFecha(){
+  const { inicio, fin } = rangoDelDia(fechaSeleccionada);
+
+  const { data: ventas, error: errorVentas } = await supabaseClient
     .from("caja_ventas")
     .select("*")
-    .gte("creado_en", hoyInicio.toISOString())
+    .gte("creado_en", inicio)
+    .lte("creado_en", fin)
     .order("creado_en", { ascending: false });
 
+  const { data: gastos, error: errorGastos } = await supabaseClient
+    .from("gastos")
+    .select("*")
+    .gte("creado_en", inicio)
+    .lte("creado_en", fin)
+    .order("creado_en", { ascending: false });
+
+  if(errorVentas) console.error(errorVentas);
+  if(errorGastos) console.error(errorGastos);
+
+  renderHistorialHoy(ventas || []);
+  renderGastos(gastos || []);
+  renderResumenHoy(ventas || [], gastos || []);
+  cargarBadgeCierre();
+}
+
+async function cargarTotalHoyHeader(){
+  const { inicio, fin } = rangoDelDia(fechaHoyISO());
+  const { data, error } = await supabaseClient
+    .from("caja_ventas")
+    .select("total")
+    .gte("creado_en", inicio)
+    .lte("creado_en", fin);
   if(error){ console.error(error); return; }
-
-  renderHistorialHoy(data);
-  renderResumenHoy(data);
-
-  const totalHoy = data.reduce((s, v) => s + Number(v.total), 0);
+  const totalHoy = (data || []).reduce((s, v) => s + Number(v.total), 0);
   document.getElementById("total-hoy-valor").textContent = money(totalHoy);
 }
+
+/* ===================== Historial de ventas ===================== */
 
 function renderHistorialHoy(ventas){
   const cont = document.getElementById("historial-hoy");
   if(ventas.length === 0){
-    cont.innerHTML = `<div id="vacio-hoy">Todavía no has registrado ventas hoy.</div>`;
+    cont.innerHTML = `<div id="vacio-hoy">No hay ventas registradas este día.</div>`;
     return;
   }
 
@@ -874,29 +1068,99 @@ async function deshacerVenta(grupoId){
   await supabaseClient.from("caja_ventas").delete().in("id", ids);
 
   cargarProductos();
-  cargarHistorialHoy();
+  cargarVistaFecha();
+  cargarTotalHoyHeader();
 }
 
-function renderResumenHoy(ventas){
-  const tabla = document.getElementById("tabla-resumen");
-  if(ventas.length === 0){
-    tabla.innerHTML = `<tr><td colspan="2" style="text-align:center; color:rgba(242,233,216,0.35);">Sin datos todavía</td></tr>`;
+/* ===================== Gastos / compras ===================== */
+
+function renderGastos(gastos){
+  const cont = document.getElementById("lista-gastos");
+  if(gastos.length === 0){
+    cont.innerHTML = `<div id="vacio-hoy">No hay gastos registrados este día.</div>`;
     return;
   }
 
-  const porProducto = {};
-  ventas.forEach(v => {
-    if(!porProducto[v.producto_nombre]) porProducto[v.producto_nombre] = { cantidad: 0, total: 0 };
-    porProducto[v.producto_nombre].cantidad += v.cantidad;
-    porProducto[v.producto_nombre].total += Number(v.total);
+  cont.innerHTML = gastos.map(g => `
+    <div class="gasto-linea">
+      <div class="gasto-info">
+        <span>${g.descripcion}</span>
+        ${g.categoria ? `<span class="gasto-categoria">${g.categoria}</span>` : ""}
+      </div>
+      <div class="gasto-monto">
+        ${money(g.monto)}
+        <span class="quitar" onclick="eliminarGasto(${g.id})">quitar</span>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function registrarGasto(){
+  const descripcion = document.getElementById("gasto-descripcion").value.trim();
+  const categoria = document.getElementById("gasto-categoria").value.trim();
+  const monto = parseFloat(document.getElementById("gasto-monto").value);
+
+  if(!descripcion || !monto || monto <= 0){
+    alert("Escribe una descripción y un monto válido.");
+    return;
+  }
+
+  // El gasto se registra con la fecha/hora seleccionada actualmente
+  const ahora = new Date();
+  const [horas, minutos, segundos] = [ahora.getHours(), ahora.getMinutes(), ahora.getSeconds()];
+  const creadoEn = fechaSeleccionada === fechaHoyISO()
+    ? new Date().toISOString()
+    : new Date(`${fechaSeleccionada}T${String(horas).padStart(2,"0")}:${String(minutos).padStart(2,"0")}:${String(segundos).padStart(2,"0")}`).toISOString();
+
+  const { error } = await supabaseClient.from("gastos").insert({
+    descripcion, categoria: categoria || null, monto, creado_en: creadoEn
   });
 
-  tabla.innerHTML = Object.entries(porProducto).map(([nombre, datos]) => `
-    <tr>
-      <td>${nombre} <span style="color:rgba(242,233,216,0.4);">x${datos.cantidad}</span></td>
-      <td>${money(datos.total)}</td>
-    </tr>
-  `).join("");
+  if(error){ console.error(error); alert("No se pudo registrar el gasto."); return; }
+
+  document.getElementById("gasto-descripcion").value = "";
+  document.getElementById("gasto-categoria").value = "";
+  document.getElementById("gasto-monto").value = "";
+
+  cargarVistaFecha();
+}
+
+async function eliminarGasto(id){
+  if(!confirm("¿Borrar este gasto?")) return;
+  const { error } = await supabaseClient.from("gastos").delete().eq("id", id);
+  if(error){ console.error(error); alert("No se pudo borrar."); return; }
+  cargarVistaFecha();
+}
+
+/* ===================== Resumen y ganancia ===================== */
+
+function renderResumenHoy(ventas, gastos){
+  const tabla = document.getElementById("tabla-resumen");
+  if(ventas.length === 0){
+    tabla.innerHTML = `<tr><td colspan="2" style="text-align:center; color:rgba(242,233,216,0.35);">Sin ventas este día</td></tr>`;
+  } else {
+    const porProducto = {};
+    ventas.forEach(v => {
+      if(!porProducto[v.producto_nombre]) porProducto[v.producto_nombre] = { cantidad: 0, total: 0 };
+      porProducto[v.producto_nombre].cantidad += v.cantidad;
+      porProducto[v.producto_nombre].total += Number(v.total);
+    });
+
+    tabla.innerHTML = Object.entries(porProducto).map(([nombre, datos]) => `
+      <tr>
+        <td>${nombre} <span style="color:rgba(242,233,216,0.4);">x${datos.cantidad}</span></td>
+        <td>${money(datos.total)}</td>
+      </tr>
+    `).join("");
+  }
+
+  const totalVentas = ventas.reduce((s, v) => s + Number(v.total), 0);
+  const totalGastos = gastos.reduce((s, g) => s + Number(g.monto), 0);
+  const ganancia = totalVentas - totalGastos;
+
+  document.getElementById("resumen-ventas").textContent = money(totalVentas);
+  document.getElementById("resumen-gastos").textContent = money(totalGastos);
+  document.getElementById("resumen-ganancia").textContent = money(ganancia);
 }
 
 /* ===================== Calculadora ===================== */
@@ -1023,10 +1287,64 @@ async function agregarProductoNuevo(){
   cargarProductos();
 }
 
+/* ===================== Cierre de caja ===================== */
+
+async function cargarBadgeCierre(){
+  const { data, error } = await supabaseClient
+    .from("cierres_caja")
+    .select("*")
+    .eq("fecha", fechaSeleccionada)
+    .maybeSingle();
+
+  const badge = document.getElementById("badge-cierre");
+  if(error){ console.error(error); return; }
+
+  if(data){
+    const hora = new Date(data.cerrado_en).toLocaleTimeString("es-CO", { hour:"2-digit", minute:"2-digit" });
+    badge.textContent = `✓ Caja cerrada a las ${hora}`;
+    badge.classList.remove("pendiente");
+  } else {
+    badge.textContent = "Este día aún no se ha cerrado";
+    badge.classList.add("pendiente");
+  }
+}
+
+async function cerrarCajaDelDia(){
+  const totalVentas = parseFloat(document.getElementById("resumen-ventas").textContent.replace(/[^0-9.-]/g, "")) || 0;
+  const totalGastos = parseFloat(document.getElementById("resumen-gastos").textContent.replace(/[^0-9.-]/g, "")) || 0;
+  const ganancia = totalVentas - totalGastos;
+
+  const { data: existente } = await supabaseClient
+    .from("cierres_caja")
+    .select("id")
+    .eq("fecha", fechaSeleccionada)
+    .maybeSingle();
+
+  const mensaje = existente
+    ? `Este día ya fue cerrado antes. ¿Actualizar el cierre con los totales actuales?\n\nVentas: ${money(totalVentas)}\nGastos: ${money(totalGastos)}\nGanancia: ${money(ganancia)}`
+    : `¿Cerrar la caja del ${fechaSeleccionada}?\n\nVentas: ${money(totalVentas)}\nGastos: ${money(totalGastos)}\nGanancia: ${money(ganancia)}`;
+
+  if(!confirm(mensaje)) return;
+
+  const { error } = await supabaseClient.from("cierres_caja").upsert({
+    fecha: fechaSeleccionada,
+    total_ventas: totalVentas,
+    total_gastos: totalGastos,
+    ganancia: ganancia,
+    cerrado_en: new Date().toISOString()
+  }, { onConflict: "fecha" });
+
+  if(error){ console.error(error); alert("No se pudo cerrar la caja."); return; }
+
+  alert("Caja cerrada ✓");
+  cargarBadgeCierre();
+}
+
 /* ===================== Inicio + tiempo real ===================== */
 
 cargarProductos();
-cargarHistorialHoy();
+cargarVistaFecha();
+cargarTotalHoyHeader();
 
 supabaseClient
   .channel("caja-productos-realtime")
@@ -1038,7 +1356,15 @@ supabaseClient
 supabaseClient
   .channel("caja-ventas-realtime")
   .on("postgres_changes", { event: "*", schema: "public", table: "caja_ventas" }, () => {
-    cargarHistorialHoy();
+    cargarVistaFecha();
+    cargarTotalHoyHeader();
+  })
+  .subscribe();
+
+supabaseClient
+  .channel("gastos-realtime")
+  .on("postgres_changes", { event: "*", schema: "public", table: "gastos" }, () => {
+    cargarVistaFecha();
   })
   .subscribe();
 </script>
