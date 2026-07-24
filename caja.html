@@ -832,16 +832,28 @@ async function agregarRueda(productoId, cantidadLote){
   cargarProductos();
 }
 
+function cantidadEnVentaActual(productoId){
+  return ventaActual
+    .filter(i => i.producto_id === productoId)
+    .reduce((s, i) => s + i.cantidad, 0);
+}
+
+function disponiblesReales(producto){
+  if(!producto.es_porcionado) return null;
+  return Math.max(0, (producto.stock_porciones || 0) - cantidadEnVentaActual(producto.id));
+}
+
 function renderProductos(){
   const cont = document.getElementById("grid-productos");
   cont.innerHTML = PRODUCTOS.map(p => {
     if(cantidades[p.id] === undefined) cantidades[p.id] = 1;
-    const sinStock = p.es_porcionado && (p.stock_porciones || 0) <= 0;
+    const disponibles = disponiblesReales(p);
+    const sinStock = p.es_porcionado && disponibles <= 0;
     return `
       <div class="producto-card">
         <div class="producto-nombre">${p.nombre}</div>
         <div class="producto-precio">${money(p.precio)} ${p.es_porcionado ? "c/u" : ""}</div>
-        ${p.es_porcionado ? `<div class="producto-stock">Disponibles: ${p.stock_porciones || 0}</div>` : ""}
+        ${p.es_porcionado ? `<div class="producto-stock">Disponibles: ${disponibles}</div>` : ""}
         <div class="producto-fila">
           <div class="cantidad-selector">
             <button class="cantidad-btn" onclick="cambiarCantidad(${p.id}, -1)">−</button>
@@ -863,7 +875,8 @@ function cambiarCantidad(productoId, delta){
   let nueva = actual + delta;
   nueva = Math.max(1, nueva);
   if(producto.es_porcionado){
-    nueva = Math.min(nueva, Math.max(1, producto.stock_porciones || 1));
+    const disponibles = disponiblesReales(producto);
+    nueva = Math.min(nueva, Math.max(1, disponibles));
   }
   cantidades[productoId] = nueva;
   document.getElementById(`cantidad-${productoId}`).textContent = nueva;
@@ -873,7 +886,7 @@ function agregarAVentaActual(productoId){
   const producto = PRODUCTOS.find(p => p.id === productoId);
   const cantidad = cantidades[productoId] || 1;
 
-  if(producto.es_porcionado && cantidad > (producto.stock_porciones || 0)){
+  if(producto.es_porcionado && cantidad > disponiblesReales(producto)){
     alert("No hay suficientes porciones disponibles.");
     return;
   }
@@ -891,6 +904,7 @@ function agregarAVentaActual(productoId){
   document.getElementById(`cantidad-${productoId}`).textContent = 1;
 
   actualizarBarraVenta();
+  renderProductos();
 }
 
 function subtotalVentaActual(){
@@ -929,6 +943,7 @@ function renderVentaActual(){
 function quitarItemVenta(idx){
   ventaActual.splice(idx, 1);
   actualizarBarraVenta();
+  renderProductos();
   if(ventaActual.length === 0){ cerrarVentaActual(); return; }
   renderVentaActual();
 }
@@ -939,6 +954,41 @@ async function registrarVenta(){
   btn.disabled = true;
   btn.textContent = "Registrando...";
 
+  // Paso 1: descuenta el stock de las porciones, validando en la base de
+  // datos que sí haya suficiente. Si algo falla, se revierte lo ya
+  // descontado en este mismo intento y NO se guarda la venta.
+  const itemsPorcionadosDescontados = [];
+
+  for(const item of ventaActual){
+    if(!item.es_porcionado) continue;
+
+    const { error: errorStock } = await supabaseClient.rpc("vender_porcion", {
+      prod_id: item.producto_id,
+      cantidad: item.cantidad
+    });
+
+    if(errorStock){
+      console.error("Error al descontar stock:", errorStock);
+
+      // Revierte lo que sí se alcanzó a descontar en este intento
+      for(const yaDescontado of itemsPorcionadosDescontados){
+        await supabaseClient.rpc("ajustar_stock_porciones", {
+          prod_id: yaDescontado.producto_id,
+          delta: yaDescontado.cantidad
+        });
+      }
+
+      alert(`No se pudo registrar la venta de "${item.nombre}": ${errorStock.message}`);
+      btn.disabled = false;
+      btn.textContent = "Registrar venta";
+      cargarProductos();
+      return;
+    }
+
+    itemsPorcionadosDescontados.push(item);
+  }
+
+  // Paso 2: ya con el stock validado y descontado, guarda la venta
   const grupoId = crypto.randomUUID();
 
   const filas = ventaActual.map(item => ({
@@ -954,19 +1004,19 @@ async function registrarVenta(){
   if(error){
     console.error(error);
     alert("No se pudo registrar la venta. Intenta de nuevo.");
-    btn.disabled = false;
-    btn.textContent = "Registrar venta";
-    return;
-  }
 
-  // Descuenta el stock de las porciones vendidas
-  for(const item of ventaActual){
-    if(item.es_porcionado){
+    // Revierte el stock ya descontado, ya que la venta no se guardó
+    for(const yaDescontado of itemsPorcionadosDescontados){
       await supabaseClient.rpc("ajustar_stock_porciones", {
-        prod_id: item.producto_id,
-        delta: -item.cantidad
+        prod_id: yaDescontado.producto_id,
+        delta: yaDescontado.cantidad
       });
     }
+
+    btn.disabled = false;
+    btn.textContent = "Registrar venta";
+    cargarProductos();
+    return;
   }
 
   ventaActual = [];
@@ -1094,10 +1144,11 @@ async function deshacerVenta(grupoId){
   for(const fila of filas){
     const producto = PRODUCTOS.find(p => p.id === fila.producto_id);
     if(producto && producto.es_porcionado){
-      await supabaseClient.rpc("ajustar_stock_porciones", {
+      const { error: errorStock } = await supabaseClient.rpc("ajustar_stock_porciones", {
         prod_id: fila.producto_id,
         delta: fila.cantidad
       });
+      if(errorStock) console.error("Error al devolver stock:", errorStock);
     }
   }
 
