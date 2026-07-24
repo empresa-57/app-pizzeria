@@ -1263,14 +1263,18 @@ async function cargarProductosAdmin(){
         <input type="text" id="adm-nombre-${p.id}" value="${p.nombre}" placeholder="Nombre">
         <input type="number" id="adm-precio-${p.id}" value="${p.precio}" placeholder="Precio" style="max-width:110px;">
       </div>
-      ${p.es_porcionado ? `
-        <div class="admin-fila">
-          <input type="number" id="adm-stock-${p.id}" value="${p.stock_porciones || 0}" placeholder="Stock actual" style="max-width:140px;">
-          <span style="font-size:11.5px; color:rgba(242,233,216,0.4); align-self:center;">porciones disponibles (ajuste manual)</span>
-        </div>
-      ` : ""}
+      <div class="admin-fila" style="align-items:center;">
+        <label style="font-size:11.5px; color:rgba(242,233,216,0.6); display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="adm-porcionado-${p.id}" ${p.es_porcionado ? "checked" : ""} onchange="togglePorcionadoUI(${p.id})">
+          🍕 Producto por porciones (como pizza grande)
+        </label>
+      </div>
+      <div class="admin-fila" id="adm-fila-porciones-${p.id}" style="${p.es_porcionado ? "" : "display:none;"}">
+        <input type="number" id="adm-lote-${p.id}" value="${p.porciones_por_lote || 8}" placeholder="Porciones por rueda" style="max-width:150px;">
+        <input type="number" id="adm-stock-${p.id}" value="${p.stock_porciones || 0}" placeholder="Stock actual" style="max-width:140px;">
+      </div>
       <div class="admin-acciones">
-        <button class="btn-mini guardar" onclick="guardarProducto(${p.id}, ${p.es_porcionado})">Guardar</button>
+        <button class="btn-mini guardar" onclick="guardarProducto(${p.id})">Guardar</button>
         <label>
           <input type="checkbox" ${p.activo ? "checked" : ""} onchange="toggleActivoProducto(${p.id}, this.checked)">
           Visible
@@ -1281,14 +1285,26 @@ async function cargarProductosAdmin(){
   `).join("");
 }
 
-async function guardarProducto(id, esPorcionado){
+function togglePorcionadoUI(id){
+  const marcado = document.getElementById(`adm-porcionado-${id}`).checked;
+  document.getElementById(`adm-fila-porciones-${id}`).style.display = marcado ? "flex" : "none";
+}
+
+async function guardarProducto(id){
   const nombre = document.getElementById(`adm-nombre-${id}`).value.trim();
   const precio = parseFloat(document.getElementById(`adm-precio-${id}`).value) || 0;
+  const esPorcionado = document.getElementById(`adm-porcionado-${id}`).checked;
 
-  const cambios = { nombre, precio };
+  const cambios = { nombre, precio, es_porcionado: esPorcionado };
+
   if(esPorcionado){
+    const loteInput = document.getElementById(`adm-lote-${id}`);
     const stockInput = document.getElementById(`adm-stock-${id}`);
-    if(stockInput) cambios.stock_porciones = parseInt(stockInput.value) || 0;
+    cambios.porciones_por_lote = parseInt(loteInput.value) || 8;
+    cambios.stock_porciones = parseInt(stockInput.value) || 0;
+  } else {
+    cambios.porciones_por_lote = null;
+    cambios.stock_porciones = 0;
   }
 
   const { error } = await supabaseClient.from("caja_productos").update(cambios).eq("id", id);
